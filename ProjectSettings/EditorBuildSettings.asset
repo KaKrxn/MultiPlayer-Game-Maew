@@ -24,7 +24,7 @@ EditorBuildSettings:
     path: Assets/Simple-Multiplayer/Shooter/TestScenes/[BB] Shooter MultiplayerSession.unity
     guid: 7d42b85864099114e8d3c5e25250b013
   - enabled: 1
-    path: Assets/Simple-Multiplayer/Core/TestScenes/[BB] Core Project.unity
+    path: Assets/FileGame/Core/Scenes/[BB] Core Project.unity
     guid: 4285cd99e76baa14a8e36c826d7a26a7
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
