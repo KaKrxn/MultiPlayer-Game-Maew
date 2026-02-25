@@ -107,12 +107,16 @@ namespace Blocks.Gameplay.Platformer
 
             if (Physics.SphereCast(m_Controller.center + transform.position, m_Controller.radius, Vector3.down, out RaycastHit hit, checkDistance, m_Motor.groundLayers, QueryTriggerInteraction.Ignore))
             {
-                if (hit.collider.TryGetComponent<AutomatedNetworkTransform>(out _))
+                // แก้ไขบรรทัดนี้: หา NetworkTransform จากตัวที่ชน หรือจาก Parent ของมัน
+                var netTransform = hit.collider.GetComponentInParent<Unity.Netcode.Components.NetworkTransform>();
+
+                if (netTransform != null)
                 {
                     if (!m_IsOnPlatform)
                     {
                         m_IsOnPlatform = true;
-                        m_CurrentPlatform = hit.transform;
+                        // ให้ตัวละครเกาะติดกับ Transform ที่มี NetworkTransform อยู่
+                        m_CurrentPlatform = netTransform.transform;
                         m_LastPlatformPosition = m_CurrentPlatform.position;
                     }
                     return;

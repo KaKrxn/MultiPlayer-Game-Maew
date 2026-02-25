@@ -5,6 +5,7 @@ TagManager:
   serializedVersion: 3
   tags:
   - CinemachineTarget
+  - Train
   layers:
   - Default
   - TransparentFX
@@ -14,8 +15,8 @@ TagManager:
   - UI
   - PlayerHitBox
   - Projectile
-  - 
-  - 
+  - Train
+  - Interactable
   - 
   - 
   - 

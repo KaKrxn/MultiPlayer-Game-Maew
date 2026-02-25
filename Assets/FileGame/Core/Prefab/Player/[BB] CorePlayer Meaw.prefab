@@ -24,8 +24,10 @@ GameObject:
   - component: {fileID: 3432624027115298979}
   - component: {fileID: 691561724687605723}
   - component: {fileID: 8293538361845572120}
+  - component: {fileID: -3826065688552085636}
+  - component: {fileID: 625419021341545024}
   m_Layer: 3
-  m_Name: '[BB] CorePlayer'
+  m_Name: '[BB] CorePlayer Meaw'
   m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -85,7 +87,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  GlobalObjectIdHash: 3365733114
+  GlobalObjectIdHash: 667462361
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -223,7 +225,7 @@ MonoBehaviour:
   groundedRadius: 0.28
   groundLayers:
     serializedVersion: 2
-    m_Bits: 1
+    m_Bits: 257
   slopeForce: 5
   slopeForceRayLength: 1.5
   isMovementEnabled: 1
@@ -403,6 +405,35 @@ MonoBehaviour:
   soundDefPlayerEliminated: {fileID: 11400000, guid: f94375e27624be640bcec5f9f675346c, type: 2}
   useRagdollOnElimination: 0
   ragdollRoot: {fileID: 0}
+--- !u!114 &-3826065688552085636
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4416926081852918481}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7433048753f024ea295c3ba0054dd074, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Blocks.Gameplay.Platformer::Blocks.Gameplay.Platformer.PlatformerMovingPlatformAbility
+--- !u!114 &625419021341545024
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4416926081852918481}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e258d095691336849a24d2fcfd0440d9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerInteraction
+  ShowTopMostFoldoutHeaderGroup: 1
+  interactRange: 20
+  interactableLayer:
+    serializedVersion: 2
+    m_Bits: 512
 --- !u!1 &8338988566280778634
 GameObject:
   m_ObjectHideFlags: 0

@@ -10651,7 +10651,7 @@ MonoBehaviour:
   NetworkConfig:
     ProtocolVersion: 0
     NetworkTransport: {fileID: 322052717}
-    PlayerPrefab: {fileID: 4416926081852918481, guid: 1a9d8fc63d3ea448c91624031258fe92, type: 3}
+    PlayerPrefab: {fileID: 4416926081852918481, guid: 98a55082874fc684b913e889223ff11c, type: 3}
     Prefabs:
       NetworkPrefabsLists:
       - {fileID: 11400000, guid: 4b3b1a7174025495e81b48e041e82325, type: 2}
@@ -10741,6 +10741,7 @@ MonoBehaviour:
     Address: 127.0.0.1
     Port: 7777
     ServerListenAddress: 127.0.0.1
+    ClientBindPort: 0
   DebugSimulator:
     PacketDelayMS: 0
     PacketJitterMS: 0

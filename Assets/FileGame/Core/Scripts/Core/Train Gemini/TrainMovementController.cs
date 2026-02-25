@@ -1,0 +1,72 @@
+using UnityEngine;
+using Unity.Netcode;
+
+[DefaultExecutionOrder(-100)]
+public class TrainMovementController : NetworkBehaviour
+{
+    public enum TrainState
+    {
+        Stopped,
+        MovingForward,
+        Braking
+    }
+
+    [Header("Train Movement Settings")]
+    public float maxSpeed = 20f;
+    public float acceleration = 2f;
+    public float brakeForce = 5f;
+
+    public NetworkVariable<float> currentSpeed = new NetworkVariable<float>(
+        0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server
+    );
+
+    public NetworkVariable<TrainState> currentState = new NetworkVariable<TrainState>(
+        TrainState.Stopped, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server
+    );
+
+    private void Update()
+    {
+        // บังคับให้ Server เป็นคนขยับรถไฟและคำนวณความเร็วเท่านั้น 
+        // แล้วปล่อยให้ AutomatedNetworkTransform ทำหน้าที่ซิงก์ภาพให้ Client เอง
+        if (!IsServer) return;
+
+        CalculateSpeed();
+        MoveTrain();
+    }
+
+    private void CalculateSpeed()
+    {
+        switch (currentState.Value)
+        {
+            case TrainState.MovingForward:
+                if (currentSpeed.Value < maxSpeed)
+                {
+                    currentSpeed.Value += acceleration * Time.deltaTime;
+                    currentSpeed.Value = Mathf.Min(currentSpeed.Value, maxSpeed);
+                }
+                break;
+
+            case TrainState.Braking:
+            case TrainState.Stopped:
+                if (currentSpeed.Value > 0)
+                {
+                    float currentDeceleration = (currentState.Value == TrainState.Braking) ? brakeForce : (brakeForce * 0.5f);
+                    currentSpeed.Value -= currentDeceleration * Time.deltaTime;
+                    currentSpeed.Value = Mathf.Max(currentSpeed.Value, 0f);
+                }
+                else if (currentState.Value == TrainState.Braking && currentSpeed.Value == 0f)
+                {
+                    currentState.Value = TrainState.Stopped;
+                }
+                break;
+        }
+    }
+
+    private void MoveTrain()
+    {
+        if (currentSpeed.Value > 0)
+        {
+            transform.Translate(Vector3.forward * (currentSpeed.Value * Time.deltaTime));
+        }
+    }
+}
