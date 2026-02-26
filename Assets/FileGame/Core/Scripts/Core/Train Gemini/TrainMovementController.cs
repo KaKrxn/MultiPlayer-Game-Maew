@@ -4,18 +4,14 @@ using Unity.Netcode;
 [DefaultExecutionOrder(-100)]
 public class TrainMovementController : NetworkBehaviour
 {
-    public enum TrainState
-    {
-        Stopped,
-        MovingForward,
-        Braking
-    }
+    public enum TrainState { Stopped, MovingForward, Braking }
 
     [Header("Train Movement Settings")]
     public float maxSpeed = 20f;
     public float acceleration = 2f;
     public float brakeForce = 5f;
 
+    // ซิงก์ State จาก Server ไปยัง Client ทุกคนตามโครงสร้าง Sync Train State
     public NetworkVariable<float> currentSpeed = new NetworkVariable<float>(
         0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server
     );
@@ -26,11 +22,13 @@ public class TrainMovementController : NetworkBehaviour
 
     private void Update()
     {
-        // บังคับให้ Server เป็นคนขยับรถไฟและคำนวณความเร็วเท่านั้น 
-        // แล้วปล่อยให้ AutomatedNetworkTransform ทำหน้าที่ซิงก์ภาพให้ Client เอง
-        if (!IsServer) return;
+        // 1. ให้ Server เป็นคนถือ Movement Authority เพื่อคำนวณและอนุมัติความเร็วเท่านั้น
+        if (IsServer)
+        {
+            CalculateSpeed();
+        }
 
-        CalculateSpeed();
+        // 2. ให้ทุกเครื่อง (ทั้ง Server และ Client) ขยับโมเดลรถไฟด้วยตัวเองตามความเร็วที่ Server อนุมัติ
         MoveTrain();
     }
 

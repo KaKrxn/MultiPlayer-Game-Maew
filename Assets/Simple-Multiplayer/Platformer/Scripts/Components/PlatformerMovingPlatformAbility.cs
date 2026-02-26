@@ -109,6 +109,7 @@ namespace Blocks.Gameplay.Platformer
             {
                 // แก้ไขบรรทัดนี้: หา NetworkTransform จากตัวที่ชน หรือจาก Parent ของมัน
                 var netTransform = hit.collider.GetComponentInParent<Unity.Netcode.Components.NetworkTransform>();
+                //var train = hit.collider.GetComponentInParent<TrainMovementController>();
 
                 if (netTransform != null)
                 {
