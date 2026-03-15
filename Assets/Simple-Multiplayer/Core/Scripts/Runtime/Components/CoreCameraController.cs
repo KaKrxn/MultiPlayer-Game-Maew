@@ -2,6 +2,7 @@ using UnityEngine;
 using Unity.Netcode;
 using Unity.Cinemachine;
 using System.Collections.Generic;
+using System.Transactions;
 
 namespace Blocks.Gameplay.Core
 {
@@ -429,6 +430,9 @@ namespace Blocks.Gameplay.Core
                 instance.SetTargets(lookTarget);
                 m_RegisteredCameraModes.Add(instance);
                 m_InstantiatedCameraModes.Add(instance);
+
+                // mainCam.transform.SetParent(transform);
+                // mainCam.transform.localPosition = cameraOffset;;
             }
         }
 
