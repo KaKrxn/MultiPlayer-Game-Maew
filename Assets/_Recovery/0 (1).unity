@@ -640,34 +640,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EndlessMapManager
   ShowTopMostFoldoutHeaderGroup: 1
   trainTransform: {fileID: 462536989}
-  startTiles:
-  - {fileID: 4077743422252294216, guid: 881f4b64b2e7ed6448848d2bbcc3daff, type: 3}
-  biomes:
-  - biomeName: Desert
-    tilePrefabs:
-    - {fileID: 4077743422252294216, guid: 06ad90af80aca824bac6f26cfe57c1cf, type: 3}
-    - {fileID: 1464324559396026257, guid: 399bf87769113254cb281440f19031e8, type: 3}
-    - {fileID: 8504761299043554413, guid: 86e87ac8583eae04ba7ba9b04ec8ac31, type: 3}
-    minTiles: 3
-    maxTiles: 7
-  - biomeName: Forest
-    tilePrefabs:
-    - {fileID: 4077743422252294216, guid: fe2b5d9f43e9fb04485362ca540b9918, type: 3}
-    - {fileID: 1464324559396026257, guid: 0380717e36ecc944d94faba1c1642f91, type: 3}
-    - {fileID: 8504761299043554413, guid: 575288f1219e15b40ab028d296692281, type: 3}
-    minTiles: 3
-    maxTiles: 7
-  - biomeName: GrassLand
-    tilePrefabs:
-    - {fileID: 4077743422252294216, guid: 5895cb391ef5e9640b27162ab6da2f8d, type: 3}
-    - {fileID: 1464324559396026257, guid: af81d95c7c7088c409f50b4f0f64156d, type: 3}
-    - {fileID: 8504761299043554413, guid: fab4a670c93be7a4ea353875abad719b, type: 3}
-    minTiles: 3
-    maxTiles: 7
-  standardTileLength: 500
-  transitionTilePrefab: {fileID: 4077743422252294216, guid: 13c8198c1c310ea4d9a948143fb4ac68, type: 3}
-  transitionTileLength: 500
+  tilePrefabs:
+  - {fileID: 4077743422252294216, guid: 0c304d244b4957d4bbd2dfd9bfa839e0, type: 3}
+  - {fileID: 1464324559396026257, guid: 53cb3aa9ba0dab04ab67ac2b8e4c19a3, type: 3}
+  - {fileID: 8504761299043554413, guid: 22cafbb17eb5f654387bf30cd477b614, type: 3}
   numberOfTilesOnScreen: 4
+  tileLength: 500
   recycleDistance: 500
   safeFlatTilesCount: 3
 --- !u!114 &797050891
@@ -682,7 +660,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 864788698
+  GlobalObjectIdHash: 2125004993
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -1391,7 +1369,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   serializedBakingSet: {fileID: 11400000, guid: 954024a17bf324b8c8abf1a3669e263a, type: 2}
-  sceneGUID: 4285cd99e76baa14a8e36c826d7a26a7
+  sceneGUID: 683ab74874fe1324599a1c4449cf0564
   obsoleteAsset: {fileID: 0}
   obsoleteCellSharedDataAsset: {fileID: 0}
   obsoleteCellSupportDataAsset: {fileID: 0}

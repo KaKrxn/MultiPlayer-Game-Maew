@@ -17,7 +17,6 @@ public class PlayerInteraction : NetworkBehaviour
     {
         if (!IsOwner) return;
 
-        // วาดเส้นสีแดงให้เห็นตอนเทส
         Debug.DrawRay(transform.position + Vector3.up, transform.forward * interactRange, Color.red);
 
         if (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)
@@ -33,42 +32,44 @@ public class PlayerInteraction : NetworkBehaviour
         Ray ray = new Ray(transform.position + Vector3.up, transform.forward);
         if (Physics.Raycast(ray, out RaycastHit hit, interactRange, interactableLayer))
         {
-            Debug.Log($"[Client] Raycast ยิงโดน: {hit.collider.gameObject.name}");
-
-            // หา NetworkObject จากตัวที่โดนยิง หรือตัวแม่ของมัน
             NetworkObject targetNetObj = hit.collider.GetComponentInParent<NetworkObject>();
 
             if (targetNetObj != null)
             {
-                Debug.Log($"[Client] ส่ง Request ไปที่ Server สำหรับ Object ID: {targetNetObj.NetworkObjectId}");
-                RequestInteractRpc(targetNetObj.NetworkObjectId);
-            }
-            else
-            {
-                Debug.LogWarning("[Client] ยิงโดนแล้ว แต่วัตถุนี้ไม่มี NetworkObject!");
+                // [แก้บั๊ก] ส่ง "ชื่อของปุ่ม (GameObject Name)" ไปบอก Server ด้วย!
+                RequestInteractRpc(targetNetObj.NetworkObjectId, hit.collider.gameObject.name);
             }
         }
     }
 
     [Rpc(SendTo.Server)]
-    private void RequestInteractRpc(ulong targetNetworkObjectId, RpcParams rpcParams = default)
+    private void RequestInteractRpc(ulong targetNetworkObjectId, string targetName, RpcParams rpcParams = default)
     {
-        Debug.Log($"[Server] ได้รับคำขอให้โต้ตอบกับ Object ID: {targetNetworkObjectId}");
-
         if (NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(targetNetworkObjectId, out NetworkObject targetObject))
         {
-            // ค้นหา IInteractable ทั้งในตัวเองและในลูกๆ (แก้ปัญหา Nesting Hierarchy)
-            IInteractable interactable = targetObject.GetComponentInChildren<IInteractable>();
+            // [แก้บั๊ก] ค้นหาปุ่มลูกที่มี "ชื่อตรงกับที่ถูกยิง" 
+            Transform targetTransform = GetChildByName(targetObject.transform, targetName);
 
-            if (interactable != null)
+            if (targetTransform != null)
             {
-                Debug.Log($"[Server] อนุมัติ! สั่งทำงาน OnInteract ที่ {targetObject.name}");
-                interactable.OnInteract(rpcParams.Receive.SenderClientId);
-            }
-            else
-            {
-                Debug.LogError($"[Server] ผิดพลาด! หา IInteractable ไม่พบบน {targetObject.name} หรือลูกๆ ของมัน");
+                IInteractable interactable = targetTransform.GetComponent<IInteractable>();
+                if (interactable != null)
+                {
+                    interactable.OnInteract(rpcParams.Receive.SenderClientId);
+                }
             }
         }
+    }
+
+    // ฟังก์ชันช่วยค้นหา Object ลูกจากชื่อ
+    private Transform GetChildByName(Transform parent, string name)
+    {
+        if (parent.name == name) return parent;
+        foreach (Transform child in parent)
+        {
+            Transform found = GetChildByName(child, name);
+            if (found != null) return found;
+        }
+        return null;
     }
 }

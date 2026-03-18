@@ -108,7 +108,7 @@ namespace Blocks.Gameplay.Core
         //-----------------------------------------------------------------------------------------------------
         // ตัวแปรซ่อนไว้ใช้คำนวณภายใน
         private float m_CurrentSpeed = 0f;
-        private readonly NetworkVariable<bool> m_IsTrainMoving = new NetworkVariable<bool>(false);
+        private readonly NetworkVariable<bool> m_IsTrainMoving = new NetworkVariable<bool>(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         public bool IsMoving => m_IsTrainMoving.Value;
         private HashSet<Transform> m_RegisteredRails = new HashSet<Transform>(); // ไว้กันแอดรางซ้ำ
 
@@ -264,10 +264,16 @@ namespace Blocks.Gameplay.Core
         /// <summary>
         /// คำสั่งที่ Client จะกดส่งมาหา Server เพื่อสับคันเร่งหรือเบรกรถไฟ
         /// </summary>
+        public void SetTrainMoving(bool startMoving)
+        {
+            if (!CanCommitToTransform) return;
+            m_IsTrainMoving.Value = startMoving;
+        }
+
         [Rpc(SendTo.Authority)]
         public void SetTrainMovingRpc(bool startMoving)
         {
-            m_IsTrainMoving.Value = startMoving;
+            SetTrainMoving(startMoving);
         }
 
         #endregion
@@ -398,8 +404,12 @@ namespace Blocks.Gameplay.Core
         /// <summary>
         /// Logic การเคลื่อนที่ของรถไฟแบบไร้ที่สิ้นสุด (รวมระบบคันเร่งและการหาราง)
         /// </summary>
+        /// <summary>
+        /// Logic การเคลื่อนที่ของรถไฟแบบไร้ที่สิ้นสุด (แบบคิว: ชนปุ๊บลบทิ้งปั๊บ)
+        /// </summary>
         private void MoveEndlessTrain()
         {
+            // 1. ระบบคันเร่ง / เบรก
             if (m_IsTrainMoving.Value)
             {
                 m_CurrentSpeed = Mathf.MoveTowards(m_CurrentSpeed, moveSpeed, trainAcceleration * Time.deltaTime);
@@ -409,71 +419,57 @@ namespace Blocks.Gameplay.Core
                 m_CurrentSpeed = Mathf.MoveTowards(m_CurrentSpeed, 0f, trainDeceleration * Time.deltaTime);
             }
 
+            // 2. ถ้าจอดสนิทและไม่มีทางให้ไปแล้ว
             if (m_CurrentSpeed <= 0f && (waypoints == null || waypoints.Count == 0)) return;
 
-            if (waypoints != null && m_CurrentWaypointIndex >= waypoints.Count - 1)
+            // 3. ระบบวิ่งตามจุดหมาย
+            if (waypoints != null && waypoints.Count > 0)
             {
-                DetectNextRail();
-            }
-
-            if (waypoints != null && m_CurrentWaypointIndex < waypoints.Count)
-            {
-                if (waypoints[m_CurrentWaypointIndex] == null)
+                // [กันเหนียว] เคลียร์ Waypoint ที่อาจจะเผลอถูกทำลายหรือเป็นค่าว่างทิ้งไป
+                while (waypoints.Count > 0 && waypoints[0] == null)
                 {
-                    m_CurrentWaypointIndex++;
-                    return;
+                    waypoints.RemoveAt(0);
                 }
 
-                Vector3 targetPosition = waypoints[m_CurrentWaypointIndex].position;
+                if (waypoints.Count == 0) return; // ทางหมดพอดี
+
+                // เล็งเป้าหมายไปที่คิวแรกสุดเสมอ (index 0)
+                Vector3 targetPosition = waypoints[0].position;
+
+                // 🔒 [โค้ดที่หายไป] ล็อกแกน Y ไม่ให้รถไฟมุดดินไปหาจุดที่อยู่ไกลๆ
+                targetPosition.y = transform.position.y;
+
                 Vector3 directionToTarget = (targetPosition - transform.position).normalized;
+
+                // หันหน้ารถไฟ
                 if (directionToTarget != Vector3.zero)
                 {
                     Quaternion targetRotation = Quaternion.LookRotation(directionToTarget);
                     transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, 5f * Time.deltaTime);
                 }
 
+                // วิ่งพุ่งไปข้างหน้า
                 transform.position = Vector3.MoveTowards(transform.position, targetPosition, m_CurrentSpeed * Time.deltaTime);
 
-                // --- จุดที่เพิ่ม Debug.Log เข้าไป ---
-                if (Vector3.Distance(transform.position, targetPosition) < 0.1f)
+                // 📏 [โค้ดที่หายไป] วัดระยะชนแบบแบนราบ และขยายเป็น 1.0f
+                Vector3 flatTrainPos = new Vector3(transform.position.x, 0, transform.position.z);
+                Vector3 flatTargetPos = new Vector3(targetPosition.x, 0, targetPosition.z);
+
+                if (Vector3.Distance(flatTrainPos, flatTargetPos) < 1.0f)
                 {
-                    // 1. Debug บอกว่าวิ่งถึงจุดที่เท่าไหร่แล้ว
-                    Debug.Log($"[Endless Train] 🚂 วิ่งถึง Waypoint ลำดับที่ {m_CurrentWaypointIndex} (ชื่อ: {waypoints[m_CurrentWaypointIndex].name}) แล้ว!");
-
-                    m_CurrentWaypointIndex++;
-
-                    // 2. Debug บอกว่าถึงจุดสุดท้ายของ List แล้ว
-                    if (m_CurrentWaypointIndex >= waypoints.Count)
-                    {
-                        Debug.LogWarning($"[Endless Train] 🛑 วิ่งมาถึงจุดสุดท้ายของ List แล้ว! (มีทั้งหมด {waypoints.Count} จุด) ถ้าระบบเรดาร์หารางไม่เจอ รถไฟจะจอดนิ่งที่นี่");
-                    }
+                    waypoints.RemoveAt(0);
                 }
             }
         }
 
-        /// <summary>
-        /// ปล่อยคลื่นเรดาร์หารางที่อยู่ใกล้ๆ แล้วแอดเข้าคิว Waypoint ท้ายสุด
-        /// </summary>
-        private void DetectNextRail()
+
+
+        public void AddNewWaypoints(Transform[] newPoints)
         {
-            Vector3 origin = railCheckPoint != null ? railCheckPoint.position : transform.position;
-            Collider[] hitColliders = Physics.OverlapSphere(origin, railCheckRadius, railLayer);
+            if (waypoints == null) waypoints = new System.Collections.Generic.List<Transform>();
 
-            foreach (var hit in hitColliders)
-            {
-                Transform foundRail = hit.transform;
-
-                if (!m_RegisteredRails.Contains(foundRail))
-                {
-                    waypoints.Add(foundRail);
-                    m_RegisteredRails.Add(foundRail);
-
-                    // 3. (แถมให้) Debug บอกตอนที่เรดาร์หารางชิ้นใหม่เจอและจับยัดเข้า List แล้ว
-                    Debug.Log($"[Endless Train] 📡 เรดาร์สแกนเจอรางใหม่: {foundRail.name} -> แอดเข้า List เป็นจุดที่ {waypoints.Count - 1}");
-
-                    break;
-                }
-            }
+            // นำจุดที่เรียงลำดับมาอย่างดีแล้ว ยัดต่อท้ายคิวให้รถไฟ
+            waypoints.AddRange(newPoints);
         }
 
         #endregion

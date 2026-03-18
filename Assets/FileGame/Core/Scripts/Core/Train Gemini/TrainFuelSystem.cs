@@ -25,27 +25,29 @@ public class TrainFuelSystem : NetworkBehaviour
 
     private void Update()
     {
+        //if (!IsServer) return;
+        // 🚨 [สำคัญมาก!] กำแพงป้องกัน: ถ้าไม่ใช่ Server หรือหารถไฟไม่เจอ ให้หยุดทำงานและกระโดดออกจากฟังก์ชันนี้ไปเลย!
         if (!IsServer || trainMovement == null) return;
 
-        // ถ้ารถไฟสตาร์ทเครื่องอยู่
+        // ถ้ารถไฟสตาร์ทเครื่องอยู่ (Server จะเป็นคนทำส่วนนี้เท่านั้น)
         if (trainMovement.IsMoving)
         {
             if (currentFuel.Value > 0)
             {
+                // ลดน้ำมันตามเวลา
                 currentFuel.Value -= fuelConsumptionRate * Time.deltaTime;
 
                 if (currentFuel.Value <= 0)
                 {
                     currentFuel.Value = 0;
-                    trainMovement.SetTrainMovingRpc(false);
+                    trainMovement.SetTrainMoving(false);
                     Debug.LogWarning("[Server] ⛽ น้ำมันหมดเกลี้ยง! บังคับเบรกรถไฟฉุกเฉิน");
                 }
             }
             else
             {
-                // [เพิ่มโค้ดส่วนนี้] ถ้าน้ำมัน <= 0 แต่รถไฟดันพยายามจะวิ่ง (เช่น เพิ่งโดนกดปุ่มมา)
-                // ให้ดับเครื่องทันที!
-                trainMovement.SetTrainMovingRpc(false);
+                // ถ้าน้ำมันหมดแล้วแต่รถไฟพยายามจะวิ่ง ให้สั่งดับเครื่อง
+                trainMovement.SetTrainMoving(false);
             }
         }
     }
