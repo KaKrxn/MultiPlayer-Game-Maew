@@ -437,7 +437,7 @@ MonoBehaviour:
   m_DisconnectTimeoutMS: 30000
   ConnectionData:
     Address: 127.0.0.1
-    Port: 9999
+    Port: 8888
     ServerListenAddress: 127.0.0.1
     ClientBindPort: 0
   DebugSimulator:

@@ -24,8 +24,8 @@ GameObject:
   - component: {fileID: 3432624027115298979}
   - component: {fileID: 691561724687605723}
   - component: {fileID: 8293538361845572120}
-  - component: {fileID: -3826065688552085636}
   - component: {fileID: 625419021341545024}
+  - component: {fileID: -5619306028043300233}
   m_Layer: 3
   m_Name: '[BB] CorePlayer Meaw'
   m_TagString: Player
@@ -405,18 +405,6 @@ MonoBehaviour:
   soundDefPlayerEliminated: {fileID: 11400000, guid: f94375e27624be640bcec5f9f675346c, type: 2}
   useRagdollOnElimination: 0
   ragdollRoot: {fileID: 0}
---- !u!114 &-3826065688552085636
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4416926081852918481}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7433048753f024ea295c3ba0054dd074, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Blocks.Gameplay.Platformer::Blocks.Gameplay.Platformer.PlatformerMovingPlatformAbility
 --- !u!114 &625419021341545024
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -434,6 +422,18 @@ MonoBehaviour:
   interactableLayer:
     serializedVersion: 2
     m_Bits: 512
+--- !u!114 &-5619306028043300233
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4416926081852918481}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7433048753f024ea295c3ba0054dd074, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Blocks.Gameplay.Platformer::Blocks.Gameplay.Platformer.PlatformerMovingPlatformAbility
 --- !u!1 &8338988566280778634
 GameObject:
   m_ObjectHideFlags: 0
