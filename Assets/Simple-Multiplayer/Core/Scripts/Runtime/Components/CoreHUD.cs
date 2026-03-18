@@ -271,6 +271,11 @@ namespace Blocks.Gameplay.Core
         /// <param name="root">The root visual element of the UIDocument.</param>
         private void CacheUIElements(VisualElement root)
         {
+            // ถ้า root เป็น null ให้หยุดทำงานทันที ไม่ต้องรันบรรทัดล่าง
+            if (root == null) 
+            {
+                return;
+            }
             m_MessageLabel = root.Q<Label>("message-label");
             m_CountdownLabel = root.Q<Label>("countdown-label");
             m_MessageOverlay = root.Q<VisualElement>("message-overlay");

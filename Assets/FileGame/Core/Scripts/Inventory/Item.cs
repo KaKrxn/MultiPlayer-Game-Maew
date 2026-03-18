@@ -1,7 +1,6 @@
 using UnityEngine;
-using Unity.Netcode; // หรือ PurrNet ตามที่คุณใช้งาน
 
-// แก้ไข: เอา , NetworkBehaviour ออก เพราะ AInteractable สืบทอดมาให้แล้ว
+
 public class Item : AInteractable 
 {
     [SerializeField] private string itemName;
@@ -10,35 +9,38 @@ public class Item : AInteractable
     public string ItemName => itemName;
     public Sprite ItemPicture => itemPicture;
 
+    private DestroyNetworkItemSync _networkSync;
+
+    private void Awake()
+    {
+        _networkSync = GetComponent<DestroyNetworkItemSync>();
+    }
+
+    [ContextMenu("Pickup Item")]
+    public void Pickup()
+    {
+        if (_networkSync != null)
+        {
+            _networkSync.RequestPickup();
+        }
+        else
+        {
+            Debug.LogWarning("ไม่มีสคริปต์ DestroyNetworkItemSync แปะอยู่บนไอเทมชิ้นนี้!");
+        }
+    }
+
     public override void Interact()
     {
         Pickup();
     }
 
-    public void Pickup()
+    public override void OnHover()
     {
-        CmdPickupItem();
+        base.OnHover();
     }
 
-    [ServerRpc(RequireOwnership = false)]
-    private void CmdPickupItem(ServerRpcParams rpcParams = default)
+    public override void OnStopHover()
     {
-        // if (!IsServer) return;
-
-        if (!InstanceHandler.TryGetInstance(out InventoryManager inventoryManager))
-        {
-            Debug.LogError("Couldn't get inventory manager for item: " + name);
-            return;
-        }
-
-        // ข้อควรระวังลอจิก: บรรทัดนี้ทำงานอยู่บนฝั่ง "Server"
-        inventoryManager.AddItem(this);
-
-        var netObj = GetComponent<NetworkObject>();
-
-        if (netObj != null && netObj.IsSpawned)
-        {
-            netObj.Despawn(true); // Despawn จะทำลาย Object ผ่าน Network ให้ทุกคนเห็นว่าหายไป
-        }
+        base.OnStopHover();
     }
 }

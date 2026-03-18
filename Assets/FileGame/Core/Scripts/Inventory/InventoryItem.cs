@@ -3,7 +3,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using TMPro;
 
-public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
+public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerClickHandler
 {
     private RectTransform rectTransform;
     private CanvasGroup canvasGroup;
@@ -66,6 +66,20 @@ public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
             transform.SetParent(originalParent);
             SetAvailable();
         }
+    }
+
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        if (eventData.button != PointerEventData.InputButton.Right)
+            return;
+
+        if (!InstanceHandler.TryGetInstance(out InventoryManager inventoryManager))
+        {
+            Debug.LogError($"Failed to get inventory manager to drop item!");
+            return;
+        }
+
+        inventoryManager.DropItem(this);
     }
 
     // ฟังก์ชันช่วยสำหรับรีเซ็ตตำแหน่งเมื่อวางสำเร็จ (เรียกจาก InventorySlot)

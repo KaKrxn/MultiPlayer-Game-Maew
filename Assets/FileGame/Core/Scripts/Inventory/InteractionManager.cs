@@ -1,48 +1,109 @@
-using PurrNet;
-using PurrNet.Utils;
 using UnityEngine;
+using Unity.Netcode;
 
-public class InteractionManager : MonoBehaviour
+
+public class InteractionManager : NetworkBehaviour
 {
+    [SerializeField] private Transform interactionSource;
     [SerializeField] private LayerMask interactableLayer;
-    [SerializeField] private float interactDistance = 4f;
+    [SerializeField] private float interactDistance = 3f;
 
-    private Camera _cam;
-    // ตัวแปร _currentInteractable ไม่ได้ถูกใช้งานในโค้ดส่วนนี้ แต่เก็บไว้ได้หากมีการใช้ระบบ Hover ในอนาคต
-    private AInteractable _currentInteractable; 
+    private AInteractable[] _currentHoveredInteractables; 
 
-    private void Awake()
-    {
-        _cam = Camera.main;
-    }
 
     private void Update()
     {
-        float rayLength = interactDistance * 3f;
+        if (!IsOwner) return;
 
-        // เส้น debug
-        Debug.DrawRay(_cam.transform.position, _cam.transform.forward * rayLength, Color.green);
-
-        if (!Input.GetKeyDown(KeyCode.E)) return;
-
-        if (Physics.Raycast(_cam.transform.position, _cam.transform.forward,
-            out RaycastHit hit, rayLength, interactableLayer))
+        if (interactionSource == null)
         {
-            Debug.DrawLine(_cam.transform.position, hit.point, Color.red);
+            // UnityEngine.Debug.LogError($"[InteractionManager] {gameObject.name} interactionSource is MISSING on Client!");
+            return;
+        }
 
-            var interactables = hit.collider.GetComponents<AInteractable>();
+        HandleHovers();
 
-            foreach (var interactable in interactables)
+        Debug.DrawRay(interactionSource.position, interactionSource.forward * interactDistance, Color.green);
+
+        if (Input.GetKeyDown(KeyCode.E))
+        {
+            if (Physics.Raycast(interactionSource.position, interactionSource.forward,
+                out RaycastHit hit, interactDistance, interactableLayer))
             {
-                if (interactable.CanInteract())
+                Debug.DrawLine(interactionSource.position, hit.point, Color.red, 1.0f);
+
+                var interactables = hit.collider.GetComponents<AInteractable>();
+                if (interactables == null || interactables.Length == 0)
+                    interactables = hit.collider.GetComponentsInParent<AInteractable>();
+
+                if (interactables != null)
                 {
-                    interactable.Interact();
-                    break;
+                    foreach (var interactable in interactables)
+                    {
+                        if (interactable.CanInteract())
+                        {
+                            interactable.Interact();
+                            break;
+                        }
+                    }
                 }
             }
         }
     }
 
+
+    private void HandleHovers()
+    {
+        // ยิง Ray ออกไปเช็คตลอดเวลาเพื่อทำระบบ Highlighting (ขอบขาว/สีเปลี่ยน)
+        if (!Physics.Raycast(interactionSource.position, interactionSource.forward, 
+            out RaycastHit hit, interactDistance, interactableLayer))
+        {
+            ClearHover();
+            return;
+        }
+
+        var interactables = hit.collider.GetComponents<AInteractable>();
+        if (interactables == null || interactables.Length == 0)
+        {
+            interactables = hit.collider.GetComponentsInParent<AInteractable>();
+        }
+
+        if (interactables == null || interactables.Length == 0)
+        {
+            ClearHover();
+            return;
+        }
+
+        // เช็คว่ายังเป็นวัตถุชิ้นเดิมไหม
+        if (_currentHoveredInteractables != null && _currentHoveredInteractables.Length > 0 && 
+            hit.collider.gameObject == _currentHoveredInteractables[0].gameObject)
+        {
+            return;
+        }
+
+        ClearHover();
+
+        _currentHoveredInteractables = interactables;
+        foreach (var interactable in interactables)
+        {
+            if (interactable.CanInteract())
+            {
+                interactable.OnHover();
+            }
+        }
+    }
+
+    private void ClearHover()
+    {
+        if (_currentHoveredInteractables == null) return;
+
+        foreach (var interactable in _currentHoveredInteractables)
+        {
+            if (interactable != null) interactable.OnStopHover();
+        }
+
+        _currentHoveredInteractables = null;
+    }
 }
 
 
@@ -50,12 +111,13 @@ public class InteractionManager : MonoBehaviour
 public abstract class AInteractable : NetworkBehaviour
 {
     public abstract void Interact();
-
+    
     public virtual void OnHover() {}
+    
     public virtual void OnStopHover() {}
+    
     public virtual bool CanInteract()
     {
         return true;
     }
-
 }

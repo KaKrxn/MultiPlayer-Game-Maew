@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using PurrNet;
 using PurrNet.Utils;
 using System.Diagnostics;
+using System.Numerics;
 
 
 public class InventoryManager : MonoBehaviour
@@ -15,19 +16,36 @@ public class InventoryManager : MonoBehaviour
     public List<InventorySlot> slots = new List<InventorySlot>();
     [PurrReadOnly, SerializeField] private InventoryItemData[] _inventoryData;
 
+    public static InventoryManager instance;
+
+    public List<InventoryItemData> inventoryData = new List<InventoryItemData>();
+    public List<Item> allItems = new List<Item>();
+
     private void Awake()
     {
-        // สมมติว่าลงทะเบียน Instance
+        if (instance == null)
+        {
+            instance = this;
+        }
+        else
+        {
+            Destroy(gameObject);
+            return;
+        }
+
         InstanceHandler.RegisterInstance(this);
         _inventoryData = new InventoryItemData[slots.Count];
-        canvasGroup.blocksRaycasts = false; // ปิดการรับ Input ของ Inventory ตอนเริ่มเกม
-        canvasGroup.alpha = 0; // ซ่อน Inventory ตอนเริ่มเกม
-        ToggleInventory(false);
-        ToggleCursor(true); // แสดง Cursor ตอนเริ่มเกม
+    }
+
+    private void Start()
+    {
+        ToggleInventory(false); 
+        ToggleCursor(true);
     }
 
 
-    private void Update() {
+    private void Update() 
+    {
         if (Input.GetKeyDown(KeyCode.Tab))
         {
             bool isOpen = canvasGroup.alpha > 0;
@@ -39,9 +57,9 @@ public class InventoryManager : MonoBehaviour
     {
         canvasGroup.alpha = toggle ? 1f : 0f;
 
-        // เปิด/ปิดการรับ input ของ UI
-        canvasGroup.blocksRaycasts = toggle;
-        canvasGroup.interactable = toggle;
+        // สองบรรทัดนี้คือตัวตัดสินว่าคลิกได้ไหม
+        canvasGroup.blocksRaycasts = toggle; // ต้องเป็น True ตอนเปิด
+        canvasGroup.interactable = toggle;   // ต้องเป็น True ตอนเปิด
 
         ToggleCursor(toggle);
     }
@@ -50,13 +68,13 @@ public class InventoryManager : MonoBehaviour
     {
         if (toggle)
         {
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            Cursor.lockState = CursorLockMode.None; // ปลดล็อก
+            Cursor.visible = true;                  // โชว์ตัว
         }
         else
         {
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
+            Cursor.lockState = CursorLockMode.Confined; 
+            Cursor.visible = true; 
         }
     }
 
@@ -109,6 +127,7 @@ public class InventoryManager : MonoBehaviour
                 InventoryItemData itemData = new InventoryItemData
                 {
                     itemName = item.ItemName,
+                    ItemPicture = item.ItemPicture,
                     inventoryItem = newItem,
                     amount = 1
                 };
@@ -137,10 +156,64 @@ public class InventoryManager : MonoBehaviour
     }
 
 
+    public void DropItem(InventoryItem inventoryItem)
+    {
+        for (int i = 0; i < _inventoryData.Length; i++)
+        {
+            var data = _inventoryData[i];
+            if (data.inventoryItem != inventoryItem)
+                continue;
+
+            var itemToSpawn = allItems.Find(x => x.ItemName == data.itemName);
+            if (itemToSpawn == null)
+            {
+                UnityEngine.Debug.LogError($"Item to spawn with name {data.itemName} not found!", this);
+                return;
+            }
+
+            UnityEngine.Vector3 spawnPosition = PlayerLocation.localPlayerMovement.transform.position + PlayerLocation.localPlayerMovement.transform.forward + (UnityEngine.Vector3.up);
+            // var item = Instantiate(itemToSpawn, spawnPosition, UnityEngine.Quaternion.identity);
+            if (PlayerDropItem.Instance != null)
+            {
+                PlayerDropItem.Instance.RequestSpawnItemServerRpc(data.itemName, spawnPosition, UnityEngine.Quaternion.identity);
+            }
+
+            DeductItem(inventoryItem);
+            break;
+        }
+    }
+
+
+    private void DeductItem(InventoryItem inventoryItem)
+    {
+        for (int i = 0; i < _inventoryData.Length; i++)
+        {
+            var data = _inventoryData[i];
+            if (data.inventoryItem != inventoryItem)
+                continue;
+
+            data.amount--;
+            if (data.amount <= 0)
+            {
+                _inventoryData[i] = default;
+                slots[i].SetItem(null);
+                Destroy(inventoryItem.gameObject);
+            }
+            else
+            {
+                data.inventoryItem.Init(data.itemName, data.ItemPicture, data.amount);
+                _inventoryData[i] = data;
+            }
+        }
+    }
+    
+
+
     [System.Serializable]
     public struct InventoryItemData
     {
         public string itemName;
+        public Sprite ItemPicture;
         public InventoryItem inventoryItem;
         public int amount;
     }
