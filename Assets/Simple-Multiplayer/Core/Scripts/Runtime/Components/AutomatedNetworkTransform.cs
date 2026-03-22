@@ -32,7 +32,9 @@ namespace Blocks.Gameplay.Core
             /// <summary>
             /// The platform rotates continuously over time.
             /// </summary>
-            RotateOverTime = 1 << 2
+            RotateOverTime = 1 << 2,
+
+            EndlessTrain = 1 << 3
         }
 
         /// <summary>
@@ -89,6 +91,26 @@ namespace Blocks.Gameplay.Core
         [SerializeField] private Vector3 rotationSpeed = new Vector3(0, 90, 0);
         [Tooltip("The coordinate space in which to apply the rotation (Self or World).")]
         [SerializeField] private Space rotationSpace = Space.Self;
+        //-----------------------------------------------------------------------------------------------------
+        [Header("Endless Train Settings")]
+        [Tooltip("ความเร็วในการเร่งเครื่อง")]
+        [SerializeField] private float trainAcceleration = 2.0f;
+        [Tooltip("ความหนืดในการเบรก")]
+        [SerializeField] private float trainDeceleration = 5.0f;
+
+        [Header("Rail Detection")]
+        [Tooltip("Layer ของรางรถไฟ")]
+        [SerializeField] private LayerMask railLayer;
+        [Tooltip("ระยะการแสกนหารางล่วงหน้า")]
+        [SerializeField] private float railCheckRadius = 5.0f;
+        [Tooltip("จุดศูนย์กลางหน้ารถไฟที่จะปล่อยเรดาร์หาราง (ถ้าไม่ใส่จะใช้จุดกึ่งกลางโมเดล)")]
+        [SerializeField] private Transform railCheckPoint;
+        //-----------------------------------------------------------------------------------------------------
+        // ตัวแปรซ่อนไว้ใช้คำนวณภายใน
+        private float m_CurrentSpeed = 0f;
+        private readonly NetworkVariable<bool> m_IsTrainMoving = new NetworkVariable<bool>(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+        public bool IsMoving => m_IsTrainMoving.Value;
+        private HashSet<Transform> m_RegisteredRails = new HashSet<Transform>(); // ไว้กันแอดรางซ้ำ
 
         // Networked state variables.
         private readonly NetworkVariable<MovementType> m_CurrentMovementType = new NetworkVariable<MovementType>();
@@ -158,6 +180,10 @@ namespace Blocks.Gameplay.Core
             if ((currentType & MovementType.RotateOverTime) != 0)
             {
                 Rotate();
+            }
+            if ((currentType & MovementType.EndlessTrain) != 0)
+            {
+                MoveEndlessTrain();
             }
         }
 
@@ -233,6 +259,21 @@ namespace Blocks.Gameplay.Core
                 Debug.LogWarning("[AutomatedNetworkTransform] Enabling LerpToTarget movement but no target is set.", this);
             }
             m_CurrentMovementType.Value = newType;
+        }
+
+        /// <summary>
+        /// คำสั่งที่ Client จะกดส่งมาหา Server เพื่อสับคันเร่งหรือเบรกรถไฟ
+        /// </summary>
+        public void SetTrainMoving(bool startMoving)
+        {
+            if (!CanCommitToTransform) return;
+            m_IsTrainMoving.Value = startMoving;
+        }
+
+        [Rpc(SendTo.Authority)]
+        public void SetTrainMovingRpc(bool startMoving)
+        {
+            SetTrainMoving(startMoving);
         }
 
         #endregion
@@ -357,6 +398,102 @@ namespace Blocks.Gameplay.Core
                         m_CurrentMovementType.Value &= ~MovementType.Waypoint;
                     }
                     break;
+            }
+        }
+
+        /// <summary>
+        /// Logic การเคลื่อนที่ของรถไฟแบบไร้ที่สิ้นสุด (รวมระบบคันเร่งและการหาราง)
+        /// </summary>
+        /// <summary>
+        /// Logic การเคลื่อนที่ของรถไฟแบบไร้ที่สิ้นสุด (แบบคิว: ชนปุ๊บลบทิ้งปั๊บ)
+        /// </summary>
+        private void MoveEndlessTrain()
+        {
+            // 1. ระบบคันเร่ง / เบรก
+            if (m_IsTrainMoving.Value)
+            {
+                m_CurrentSpeed = Mathf.MoveTowards(m_CurrentSpeed, moveSpeed, trainAcceleration * Time.deltaTime);
+            }
+            else
+            {
+                m_CurrentSpeed = Mathf.MoveTowards(m_CurrentSpeed, 0f, trainDeceleration * Time.deltaTime);
+            }
+
+            // 2. ถ้าจอดสนิทและไม่มีทางให้ไปแล้ว
+            if (m_CurrentSpeed <= 0f && (waypoints == null || waypoints.Count == 0)) return;
+
+            // 3. ระบบวิ่งตามจุดหมาย
+            if (waypoints != null && waypoints.Count > 0)
+            {
+                // [กันเหนียว] เคลียร์ Waypoint ที่อาจจะเผลอถูกทำลายหรือเป็นค่าว่างทิ้งไป
+                while (waypoints.Count > 0 && waypoints[0] == null)
+                {
+                    waypoints.RemoveAt(0);
+                }
+
+                if (waypoints.Count == 0) return; // ทางหมดพอดี
+
+                // เล็งเป้าหมายไปที่คิวแรกสุดเสมอ (index 0)
+                Vector3 targetPosition = waypoints[0].position;
+
+                // 🔒 [โค้ดที่หายไป] ล็อกแกน Y ไม่ให้รถไฟมุดดินไปหาจุดที่อยู่ไกลๆ
+                targetPosition.y = transform.position.y;
+
+                Vector3 directionToTarget = (targetPosition - transform.position).normalized;
+
+                // หันหน้ารถไฟ
+                if (directionToTarget != Vector3.zero)
+                {
+                    Quaternion targetRotation = Quaternion.LookRotation(directionToTarget);
+                    transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, 5f * Time.deltaTime);
+                }
+
+                // วิ่งพุ่งไปข้างหน้า
+                transform.position = Vector3.MoveTowards(transform.position, targetPosition, m_CurrentSpeed * Time.deltaTime);
+
+                // 📏 [โค้ดที่หายไป] วัดระยะชนแบบแบนราบ และขยายเป็น 1.0f
+                Vector3 flatTrainPos = new Vector3(transform.position.x, 0, transform.position.z);
+                Vector3 flatTargetPos = new Vector3(targetPosition.x, 0, targetPosition.z);
+
+                if (Vector3.Distance(flatTrainPos, flatTargetPos) < 1.0f)
+                {
+                    waypoints.RemoveAt(0);
+                }
+            }
+        }
+
+
+
+        public void AddNewWaypoints(Transform[] newPoints)
+        {
+            if (waypoints == null) waypoints = new System.Collections.Generic.List<Transform>();
+
+            // นำจุดที่เรียงลำดับมาอย่างดีแล้ว ยัดต่อท้ายคิวให้รถไฟ
+            waypoints.AddRange(newPoints);
+        }
+
+        #endregion
+
+        #region Editor Gizmos
+
+        // ฟังก์ชันนี้จะทำงานเฉพาะในหน้าต่าง Scene ของ Unity (ตอนที่เราคลิกเลือก Object นี้)
+        private void OnDrawGizmosSelected()
+        {
+            // เช็คก่อนว่าเปิดโหมด Endless Train ไว้ไหม ถ้าไม่ได้เปิดก็ไม่ต้องวาด
+            if ((movementType & MovementType.EndlessTrain) != 0)
+            {
+                // ตั้งสีของเส้นเรดาร์ (เช่น สีฟ้าใสๆ)
+                Gizmos.color = new Color(0f, 1f, 1f, 0.5f);
+
+                // หาจุดศูนย์กลางที่จะวาด (จุดเดียวกับที่ปล่อยเรดาร์)
+                Vector3 origin = railCheckPoint != null ? railCheckPoint.position : transform.position;
+
+                // สั่งวาดเส้นขอบทรงกลมตามระยะรัศมีที่เราตั้งไว้
+                Gizmos.DrawWireSphere(origin, railCheckRadius);
+
+                // ถ่ายเส้นทึบจางๆ ด้านในด้วย จะได้เห็นชัดๆ ว่ากินพื้นที่แค่ไหน
+                Gizmos.color = new Color(0f, 1f, 1f, 0.1f);
+                Gizmos.DrawSphere(origin, railCheckRadius);
             }
         }
 
