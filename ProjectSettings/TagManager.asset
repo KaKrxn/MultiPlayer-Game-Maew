@@ -15,6 +15,11 @@ TagManager:
   - UI
   - PlayerHitBox
   - Projectile
+  - Interactable
+  - Items
+  - 
+  -
+  -
   - Train
   - Interactable
   - Rail
