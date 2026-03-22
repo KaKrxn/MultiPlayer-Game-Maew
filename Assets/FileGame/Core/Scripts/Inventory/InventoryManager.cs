@@ -206,7 +206,25 @@ public class InventoryManager : MonoBehaviour
             }
         }
     }
-    
+
+    // ---------------------------------------------------------
+    // ฟังก์ชันใหม่: ใช้ค้นหาและหักไอเทมตาม "ชื่อ" (ส่งค่ากลับเป็น true ถ้าหักสำเร็จ)
+    public bool ConsumeItem(string targetItemName)
+    {
+        for (int i = 0; i < _inventoryData.Length; i++)
+        {
+            // ถ้าเจอไอเทมที่ชื่อตรงกัน และมีจำนวนมากกว่า 0
+            if (_inventoryData[i].itemName == targetItemName && _inventoryData[i].amount > 0)
+            {
+                // เรียกใช้ฟังก์ชันเดิมของคุณเพื่อหักไอเทม 1 ชิ้น
+                DeductItem(_inventoryData[i].inventoryItem);
+                return true;
+            }
+        }
+        return false; // ถ้าหาไม่เจอ หรือของหมด
+    }
+    // ---------------------------------------------------------
+
 
 
     [System.Serializable]

@@ -251,11 +251,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 4119508860228947539, guid: 3204a85e4e0eb5b4a81b82ba00663df0, type: 3}
   m_PrefabInstance: {fileID: 5119770720993441300}
   m_PrefabAsset: {fileID: 0}
---- !u!4 &462536989 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 859350479637324554, guid: 3204a85e4e0eb5b4a81b82ba00663df0, type: 3}
-  m_PrefabInstance: {fileID: 5119770720993441300}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1 &616833624
 GameObject:
   m_ObjectHideFlags: 0
@@ -639,7 +634,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EndlessMapManager
   ShowTopMostFoldoutHeaderGroup: 1
-  trainTransform: {fileID: 462536989}
+  trainTransform: {fileID: 0}
   startTiles:
   - {fileID: 4077743422252294216, guid: 881f4b64b2e7ed6448848d2bbcc3daff, type: 3}
   biomes:
