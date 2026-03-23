@@ -78,6 +78,7 @@ GameObject:
   - component: {fileID: 6520746631869141814}
   - component: {fileID: 6174938522493390210}
   - component: {fileID: 7159615909897646262}
+  - component: {fileID: -9161811790333028002}
   m_Layer: 3
   m_Name: '[Dew] CorePlayer'
   m_TagString: Player
@@ -513,6 +514,30 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7433048753f024ea295c3ba0054dd074, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Blocks.Gameplay.Platformer::Blocks.Gameplay.Platformer.PlatformerMovingPlatformAbility
+--- !u!114 &-9161811790333028002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4416926081852918481}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 06c2948346f254a938d0a868ed730441, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Blocks.Gameplay.Shooter::Blocks.Gameplay.Shooter.ShooterAddon
+  ShowTopMostFoldoutHeaderGroup: 1
+  weaponHUD: {fileID: 0}
+  aimController: {fileID: 0}
+  shooterAnimator: {fileID: 0}
+  weaponController: {fileID: 0}
+  shooterHitProcessor: {fileID: 0}
+  thirdPersonFreeLookCameraName: FreeLook
+  thirdPersonAimCameraName: Aim
+  freeLookSensitivity: 1
+  aimSensitivity: 0.5
+  onAimToggled: {fileID: 0}
+  onAimingStateChanged: {fileID: 0}
 --- !u!1 &8338988566280778634
 GameObject:
   m_ObjectHideFlags: 0

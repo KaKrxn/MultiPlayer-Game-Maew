@@ -6,20 +6,29 @@ using PurrNet.Utils;
 using System.Diagnostics;
 using System.Numerics;
 
-
 public class InventoryManager : MonoBehaviour
 {
-
-    [SerializeField] private CanvasGroup canvasGroup;
+    [Header("UI Setup")]
+    [Tooltip("ใส่ Canvas Group ของ MainInventoryPanel (คุมเฉพาะกระเป๋าหลัก)")]
+    [SerializeField] private CanvasGroup mainInventoryGroup;
 
     public GameObject itemPrefab;
-    public List<InventorySlot> slots = new List<InventorySlot>();
+
+    [Header("UI Slots Setup")]
+    public List<InventorySlot> quickSlots = new List<InventorySlot>();
+    public List<InventorySlot> mainSlots = new List<InventorySlot>();
+
+    [HideInInspector] public List<InventorySlot> allSlots = new List<InventorySlot>();
+
     [PurrReadOnly, SerializeField] private InventoryItemData[] _inventoryData;
 
     public static InventoryManager instance;
 
     public List<InventoryItemData> inventoryData = new List<InventoryItemData>();
     public List<Item> allItems = new List<Item>();
+
+    // ตัวแปรจำว่าตอนนี้เลือก Quick Slot ช่องไหนอยู่ (เริ่มที่ช่อง 0)
+    public int selectedQuickSlotIndex = 0;
 
     private void Awake()
     {
@@ -34,32 +43,83 @@ public class InventoryManager : MonoBehaviour
         }
 
         InstanceHandler.RegisterInstance(this);
-        _inventoryData = new InventoryItemData[slots.Count];
+
+        allSlots.AddRange(quickSlots);
+        allSlots.AddRange(mainSlots);
+
+        _inventoryData = new InventoryItemData[allSlots.Count];
     }
 
     private void Start()
     {
-        ToggleInventory(false); 
+        ToggleInventory(false);
         ToggleCursor(true);
+
+        // เริ่มเกมมาให้เลือกช่องที่ 1 (Index 0) ไว้ก่อน
+        SelectQuickSlot(0);
     }
 
-
-    private void Update() 
+    private void Update()
     {
+        // เปิด/ปิด กระเป๋าหลัก
         if (Input.GetKeyDown(KeyCode.Tab))
         {
-            bool isOpen = canvasGroup.alpha > 0;
+            bool isOpen = mainInventoryGroup.alpha > 0;
             ToggleInventory(!isOpen);
+        }
+
+        // ระบบเลื่อนเลือกช่อง Quick Slots (1-5)
+        if (Input.GetKeyDown(KeyCode.Alpha1)) SelectQuickSlot(0);
+        if (Input.GetKeyDown(KeyCode.Alpha2)) SelectQuickSlot(1);
+        if (Input.GetKeyDown(KeyCode.Alpha3)) SelectQuickSlot(2);
+        if (Input.GetKeyDown(KeyCode.Alpha4)) SelectQuickSlot(3);
+        if (Input.GetKeyDown(KeyCode.Alpha5)) SelectQuickSlot(4);
+
+        // ระบบโยนของทิ้งจาก Quick Slot ที่เลือกอยู่
+        if (Input.GetKeyDown(KeyCode.G))
+        {
+            DropItemFromIndex(selectedQuickSlotIndex);
+        }
+    }
+
+    // ฟังก์ชันสำหรับเลือกและไฮไลต์ Quick Slot
+    private void SelectQuickSlot(int index)
+    {
+        if (index < 0 || index >= quickSlots.Count) return;
+        selectedQuickSlotIndex = index;
+
+        // วนลูปเพื่อปรับ UI (ช่องที่เลือกจะขยายใหญ่ 1.15 เท่า, ช่องอื่นขนาดปกติ)
+        for (int i = 0; i < quickSlots.Count; i++)
+        {
+            if (quickSlots[i] != null)
+            {
+                quickSlots[i].transform.localScale = (i == selectedQuickSlotIndex) ? new UnityEngine.Vector3(1.15f, 1.15f, 1.15f) : UnityEngine.Vector3.one;
+            }
+        }
+    }
+
+    // ฟังก์ชันสั่ง Drop ของโดยอิงจาก Index
+    public void DropItemFromIndex(int index)
+    {
+        if (index < 0 || index >= _inventoryData.Length) return;
+
+        var data = _inventoryData[index];
+        // เช็คว่าช่องนั้นมีไอเทมอยู่จริงๆ ค่อยทิ้ง
+        if (data.inventoryItem != null && data.amount > 0)
+        {
+            DropItem(data.inventoryItem);
         }
     }
 
     private void ToggleInventory(bool toggle)
     {
-        canvasGroup.alpha = toggle ? 1f : 0f;
-
-        // สองบรรทัดนี้คือตัวตัดสินว่าคลิกได้ไหม
-        canvasGroup.blocksRaycasts = toggle; // ต้องเป็น True ตอนเปิด
-        canvasGroup.interactable = toggle;   // ต้องเป็น True ตอนเปิด
+        // เปลี่ยนมาคุมตัว mainInventoryGroup แทน
+        if (mainInventoryGroup != null)
+        {
+            mainInventoryGroup.alpha = toggle ? 1f : 0f;
+            mainInventoryGroup.blocksRaycasts = toggle;
+            mainInventoryGroup.interactable = toggle;
+        }
 
         ToggleCursor(toggle);
     }
@@ -68,18 +128,19 @@ public class InventoryManager : MonoBehaviour
     {
         if (toggle)
         {
-            Cursor.lockState = CursorLockMode.None; // ปลดล็อก
-            Cursor.visible = true;                  // โชว์ตัว
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
         }
         else
         {
-            Cursor.lockState = CursorLockMode.Confined; 
-            Cursor.visible = true; 
+            Cursor.lockState = CursorLockMode.Confined;
+            Cursor.visible = true;
         }
     }
 
     private void OnDestroy()
     {
+        if (instance == this) instance = null;
         InstanceHandler.UnregisterInstance<InventoryManager>();
     }
 
@@ -91,17 +152,13 @@ public class InventoryManager : MonoBehaviour
         }
     }
 
-
     private bool TryStackItem(Item item)
     {
         for (int i = 0; i < _inventoryData.Length; i++)
         {
             var data = _inventoryData[i];
-            if (string.IsNullOrEmpty(data.itemName))
-                continue;
-
-            if (data.itemName != item.ItemName)
-                continue;
+            if (string.IsNullOrEmpty(data.itemName)) continue;
+            if (data.itemName != item.ItemName) continue;
 
             data.amount++;
             data.inventoryItem.Init(item.ItemName, item.ItemPicture, data.amount);
@@ -109,19 +166,17 @@ public class InventoryManager : MonoBehaviour
 
             return true;
         }
-
         return false;
     }
 
     public void AddNewItem(Item item)
     {
-        for (int i = 0; i < slots.Count; i++)
+        for (int i = 0; i < allSlots.Count; i++)
         {
-            var slot = slots[i];
+            var slot = allSlots[i];
             if (slot.IsEmpty)
             {
                 var newItem = Instantiate(itemPrefab, slot.transform).GetComponent<InventoryItem>();
-
                 newItem.Init(item.ItemName, item.ItemPicture, 1);
 
                 InventoryItemData itemData = new InventoryItemData
@@ -138,41 +193,31 @@ public class InventoryManager : MonoBehaviour
             }
         }
     }
-    
+
     public void ItemMoved(InventoryItem item, InventorySlot newSlot)
     {
-        var newSlotIndex = slots.IndexOf(newSlot);
+        var newSlotIndex = allSlots.IndexOf(newSlot);
         var oldSlotIndex = Array.FindIndex(_inventoryData, x => x.inventoryItem == item);
 
-        if (oldSlotIndex == -1 || newSlotIndex == -1)
-        {
-            UnityEngine.Debug.LogError("Invalid slot index for item move");
-            return;
-        }
+        if (oldSlotIndex == -1 || newSlotIndex == -1) return;
 
         var temp = _inventoryData[newSlotIndex];
         _inventoryData[newSlotIndex] = _inventoryData[oldSlotIndex];
         _inventoryData[oldSlotIndex] = temp;
     }
 
-
     public void DropItem(InventoryItem inventoryItem)
     {
         for (int i = 0; i < _inventoryData.Length; i++)
         {
             var data = _inventoryData[i];
-            if (data.inventoryItem != inventoryItem)
-                continue;
+            if (data.inventoryItem != inventoryItem) continue;
 
             var itemToSpawn = allItems.Find(x => x.ItemName == data.itemName);
-            if (itemToSpawn == null)
-            {
-                UnityEngine.Debug.LogError($"Item to spawn with name {data.itemName} not found!", this);
-                return;
-            }
+            if (itemToSpawn == null) return;
 
             UnityEngine.Vector3 spawnPosition = PlayerLocation.localPlayerMovement.transform.position + PlayerLocation.localPlayerMovement.transform.forward + (UnityEngine.Vector3.up);
-            // var item = Instantiate(itemToSpawn, spawnPosition, UnityEngine.Quaternion.identity);
+
             if (PlayerDropItem.Instance != null)
             {
                 PlayerDropItem.Instance.RequestSpawnItemServerRpc(data.itemName, spawnPosition, UnityEngine.Quaternion.identity);
@@ -183,20 +228,18 @@ public class InventoryManager : MonoBehaviour
         }
     }
 
-
     private void DeductItem(InventoryItem inventoryItem)
     {
         for (int i = 0; i < _inventoryData.Length; i++)
         {
             var data = _inventoryData[i];
-            if (data.inventoryItem != inventoryItem)
-                continue;
+            if (data.inventoryItem != inventoryItem) continue;
 
             data.amount--;
             if (data.amount <= 0)
             {
                 _inventoryData[i] = default;
-                slots[i].SetItem(null);
+                allSlots[i].SetItem(null);
                 Destroy(inventoryItem.gameObject);
             }
             else
@@ -207,25 +250,18 @@ public class InventoryManager : MonoBehaviour
         }
     }
 
-    // ---------------------------------------------------------
-    // ฟังก์ชันใหม่: ใช้ค้นหาและหักไอเทมตาม "ชื่อ" (ส่งค่ากลับเป็น true ถ้าหักสำเร็จ)
     public bool ConsumeItem(string targetItemName)
     {
         for (int i = 0; i < _inventoryData.Length; i++)
         {
-            // ถ้าเจอไอเทมที่ชื่อตรงกัน และมีจำนวนมากกว่า 0
             if (_inventoryData[i].itemName == targetItemName && _inventoryData[i].amount > 0)
             {
-                // เรียกใช้ฟังก์ชันเดิมของคุณเพื่อหักไอเทม 1 ชิ้น
                 DeductItem(_inventoryData[i].inventoryItem);
                 return true;
             }
         }
-        return false; // ถ้าหาไม่เจอ หรือของหมด
+        return false;
     }
-    // ---------------------------------------------------------
-
-
 
     [System.Serializable]
     public struct InventoryItemData
