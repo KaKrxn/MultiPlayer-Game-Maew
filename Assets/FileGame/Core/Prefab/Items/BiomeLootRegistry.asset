@@ -15,3 +15,7 @@ MonoBehaviour:
   mappings:
   - biomeName: Desert
     lootTable: {fileID: 11400000, guid: a213bafb4cedcd5418d0773271675748, type: 2}
+  - biomeName: Grassland
+    lootTable: {fileID: 11400000, guid: a213bafb4cedcd5418d0773271675748, type: 2}
+  - biomeName: Forest
+    lootTable: {fileID: 11400000, guid: a213bafb4cedcd5418d0773271675748, type: 2}

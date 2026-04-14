@@ -154,7 +154,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 1064871584
+  GlobalObjectIdHash: 2170943157
   InScenePlacedSourceGlobalObjectIdHash: 2170943157
   DeferredDespawnTick: 0
   Ownership: 1
@@ -182,7 +182,7 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   baseMoveSpeed: 2
   nightSpeedMultiplier: 2.5
-  triggerDistance: 10
+  triggerDistance: 1
   isActive: 0
   damagePerTick: 10
   tickRate: 1

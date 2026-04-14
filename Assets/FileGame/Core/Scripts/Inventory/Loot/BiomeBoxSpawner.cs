@@ -62,16 +62,10 @@ public class BiomeBoxSpawner : NetworkBehaviour
     {
         GameObject boxObj = Instantiate(lootBoxPrefab, point.position, point.rotation);
         
-        // Ensure the box belongs to this tile so it's destroyed when the tile is recycled
-        boxObj.transform.SetParent(transform);
-
         // Configure the box
         InteractableLootBox boxLogic = boxObj.GetComponent<InteractableLootBox>();
         if (boxLogic != null)
         {
-            // We need to inject the loot table into the box instance logic
-            // Since lootTable is a field in InteractableLootBox, we can set it here if public
-            // or use a public method. I'll use a public method to be safe.
             SetLootTable(boxLogic, lootTable);
         }
 
@@ -80,6 +74,13 @@ public class BiomeBoxSpawner : NetworkBehaviour
         if (netObj != null)
         {
             netObj.Spawn();
+            // Ensure the box belongs to this tile so it's destroyed when the tile is recycled
+            netObj.TrySetParent(transform);
+        }
+        else
+        {
+            // Fallback for non-networked boxes if any exist
+            boxObj.transform.SetParent(transform);
         }
     }
 

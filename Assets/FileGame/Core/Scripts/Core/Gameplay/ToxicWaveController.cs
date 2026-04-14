@@ -19,7 +19,7 @@ namespace Blocks.Gameplay.Core
         [Header("References")]
         [SerializeField] private DayNightCycleManager dayNightManager;
 
-        private NetworkVariable<float> m_CurrentXPosition = new NetworkVariable<float>(
+        private NetworkVariable<float> m_CurrentZPosition = new NetworkVariable<float>(
             0f,
             NetworkVariableReadPermission.Everyone,
             NetworkVariableWritePermission.Server
@@ -33,17 +33,23 @@ namespace Blocks.Gameplay.Core
 
         private float m_LastTickTime;
         private float m_TargetSpeed;
-        private float m_StartPointX;
+        private float m_StartPointZ;
 
         public override void OnNetworkSpawn()
         {
             if (IsServer)
             {
-                m_StartPointX = transform.position.x;
-                m_CurrentXPosition.Value = m_StartPointX;
+                // Find DayNightCycleManager if not assigned
+                if (dayNightManager == null)
+                {
+                    dayNightManager = FindFirstObjectByType<DayNightCycleManager>();
+                }
+
+                m_StartPointZ = transform.position.z;
+                m_CurrentZPosition.Value = m_StartPointZ;
                 m_IsWaveActive.Value = isActive;
                 
-                UpdateTargetSpeed(DayNightState.Day); // Assume day start or initial state
+                UpdateTargetSpeed(DayNightState.Day);
 
                 if (dayNightManager != null)
                 {
@@ -82,16 +88,16 @@ namespace Blocks.Gameplay.Core
             }
 
             // Move the wave
-            float nextX = m_CurrentXPosition.Value + m_TargetSpeed * Time.deltaTime;
-            m_CurrentXPosition.Value = nextX;
-            transform.position = new Vector3(nextX, transform.position.y, transform.position.z);
+            float nextZ = m_CurrentZPosition.Value + m_TargetSpeed * Time.deltaTime;
+            m_CurrentZPosition.Value = nextZ;
+            transform.position = new Vector3(transform.position.x, transform.position.y, nextZ);
         }
 
         private void ClientUpdate()
         {
             // Simple visual interpolation for clients
             float lerpSpeed = m_TargetSpeed > 0 ? m_TargetSpeed * 1.5f : 5f;
-            Vector3 targetPos = new Vector3(m_CurrentXPosition.Value, transform.position.y, transform.position.z);
+            Vector3 targetPos = new Vector3(transform.position.x, transform.position.y, m_CurrentZPosition.Value);
             transform.position = Vector3.Lerp(transform.position, targetPos, Time.deltaTime * lerpSpeed);
         }
 
@@ -104,8 +110,8 @@ namespace Blocks.Gameplay.Core
             {
                 if (client.PlayerObject != null)
                 {
-                    float playerX = client.PlayerObject.transform.position.x;
-                    float dist = playerX - m_StartPointX;
+                    float playerZ = client.PlayerObject.transform.position.z;
+                    float dist = playerZ - m_StartPointZ;
                     if (dist > maxDistance)
                     {
                         maxDistance = dist;
