@@ -188,6 +188,17 @@ public class EndlessMapManager : NetworkBehaviour
         Vector3 spawnPosition = new Vector3(0, 0, spawnZ);
         GameObject tile = Instantiate(prefab, spawnPosition, Quaternion.identity);
 
+        // Inject current biome name into the tile's spawner logic
+        if (currentBiomeIndex >= 0 && currentBiomeIndex < biomes.Length)
+        {
+            var spawner = tile.GetComponent<BiomeBoxSpawner>();
+            if (spawner == null) spawner = tile.GetComponentInChildren<BiomeBoxSpawner>();
+            if (spawner != null)
+            {
+                spawner.currentBiomeName = biomes[currentBiomeIndex].biomeName;
+            }
+        }
+
         NetworkObject netObj = tile.GetComponent<NetworkObject>();
         if (netObj != null) netObj.Spawn();
 

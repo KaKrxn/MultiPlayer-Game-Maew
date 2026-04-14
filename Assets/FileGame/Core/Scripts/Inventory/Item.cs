@@ -9,6 +9,14 @@ public class Item : AInteractable
     public string ItemName => itemName;
     public Sprite ItemPicture => itemPicture;
 
+    [Header("Item State")]
+    [SerializeField] private int durability = 100;
+    public int Durability 
+    { 
+        get => durability; 
+        set => durability = Mathf.Clamp(value, 0, 100); 
+    }
+
     private DestroyNetworkItemSync _networkSync;
 
     private void Awake()
