@@ -10,6 +10,7 @@ namespace Blocks.Gameplay.Core
         [SerializeField] private float baseMoveSpeed = 2f;
         [SerializeField] private float nightSpeedMultiplier = 2.5f;
         [SerializeField] private float triggerDistance = 10f;
+        [SerializeField] private Vector3 moveDirection = Vector3.forward;
         [SerializeField] private bool isActive = false;
 
         [Header("Damage Settings")]
@@ -19,7 +20,7 @@ namespace Blocks.Gameplay.Core
         [Header("References")]
         [SerializeField] private DayNightCycleManager dayNightManager;
 
-        private NetworkVariable<float> m_CurrentZPosition = new NetworkVariable<float>(
+        private NetworkVariable<float> m_CurrentDistance = new NetworkVariable<float>(
             0f,
             NetworkVariableReadPermission.Everyone,
             NetworkVariableWritePermission.Server
@@ -33,21 +34,23 @@ namespace Blocks.Gameplay.Core
 
         private float m_LastTickTime;
         private float m_TargetSpeed;
-        private float m_StartPointZ;
+        private Vector3 m_StartPosition;
 
         public override void OnNetworkSpawn()
         {
+            m_StartPosition = transform.position;
+
             if (IsServer)
             {
                 // Find DayNightCycleManager if not assigned
                 if (dayNightManager == null)
                 {
-                    dayNightManager = FindFirstObjectByType<DayNightCycleManager>();
+                    dayNightManager = FindObjectOfType<DayNightCycleManager>();
                 }
 
-                m_StartPointZ = transform.position.z;
-                m_CurrentZPosition.Value = m_StartPointZ;
+                m_CurrentDistance.Value = 0f;
                 m_IsWaveActive.Value = isActive;
+                Debug.Log($"[ToxicWaveController] OnNetworkSpawn: StartPos={m_StartPosition}, IsActive={m_IsWaveActive.Value}");
                 
                 UpdateTargetSpeed(DayNightState.Day);
 
@@ -88,16 +91,16 @@ namespace Blocks.Gameplay.Core
             }
 
             // Move the wave
-            float nextZ = m_CurrentZPosition.Value + m_TargetSpeed * Time.deltaTime;
-            m_CurrentZPosition.Value = nextZ;
-            transform.position = new Vector3(transform.position.x, transform.position.y, nextZ);
+            float nextDist = m_CurrentDistance.Value + m_TargetSpeed * Time.deltaTime;
+            m_CurrentDistance.Value = nextDist;
+            transform.position = m_StartPosition + moveDirection.normalized * nextDist;
         }
 
         private void ClientUpdate()
         {
             // Simple visual interpolation for clients
             float lerpSpeed = m_TargetSpeed > 0 ? m_TargetSpeed * 1.5f : 5f;
-            Vector3 targetPos = new Vector3(transform.position.x, transform.position.y, m_CurrentZPosition.Value);
+            Vector3 targetPos = m_StartPosition + moveDirection.normalized * m_CurrentDistance.Value;
             transform.position = Vector3.Lerp(transform.position, targetPos, Time.deltaTime * lerpSpeed);
         }
 
@@ -110,8 +113,9 @@ namespace Blocks.Gameplay.Core
             {
                 if (client.PlayerObject != null)
                 {
-                    float playerZ = client.PlayerObject.transform.position.z;
-                    float dist = playerZ - m_StartPointZ;
+                    Vector3 playerPos = client.PlayerObject.transform.position;
+                    // Project player distance along the move direction
+                    float dist = Vector3.Dot(playerPos - m_StartPosition, moveDirection.normalized);
                     if (dist > maxDistance)
                     {
                         maxDistance = dist;
@@ -123,7 +127,22 @@ namespace Blocks.Gameplay.Core
             if (playerFound && maxDistance >= triggerDistance)
             {
                 m_IsWaveActive.Value = true;
-                Debug.Log("[ToxicWave] Wave Activated!");
+                TriggerWarningClientRpc();
+                Debug.Log($"[ToxicWave] Wave Activated! Max distance: {maxDistance}");
+            }
+        }
+
+        [ClientRpc]
+        public void TriggerWarningClientRpc()
+        {
+            Debug.Log("[ToxicWaveController] TriggerWarningClientRpc received!");
+            if (ToxicWaveUI.Instance != null)
+            {
+                ToxicWaveUI.Instance.ShowWarning();
+            }
+            else
+            {
+                Debug.LogWarning("[ToxicWaveController] ToxicWaveUI.Instance is null!");
             }
         }
 
