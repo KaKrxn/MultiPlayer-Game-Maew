@@ -115,6 +115,7 @@
   <Project Path="PurrNet.Steam.Runtime.csproj" />
   <Project Path="Unity.Multiplayer.Tools.DependencyInjection.csproj" />
   <Project Path="Unity.ShaderGraph.Utilities.csproj" />
+  <Project Path="Assembly-CSharp.csproj" />
   <Project Path="Blocks.Sessions.Common.csproj" />
   <Project Path="Blocks.Gameplay.Core.Editor.csproj" />
   <Project Path="com.unity.multiplayer.tools.window.csproj" />

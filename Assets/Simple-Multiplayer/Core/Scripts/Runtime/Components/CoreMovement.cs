@@ -205,6 +205,9 @@ namespace Blocks.Gameplay.Core
         private float m_TimeSinceLanded;
         private float m_InitialGravity;
 
+        //private Transform m_LastParent;
+        //private Vector3 m_LastParentPosition;
+
         #endregion
 
         #region Events
@@ -228,6 +231,9 @@ namespace Blocks.Gameplay.Core
         protected override void Awake()
         {
             base.Awake();
+
+            //InLocalSpace = true;
+
             m_CharacterController = GetComponent<CharacterController>();
             m_InitialGravity = gravity;
 
@@ -606,6 +612,8 @@ namespace Blocks.Gameplay.Core
             }
 
             Vector3 finalMovementVector = movement * Time.deltaTime;
+
+            
 
             // If an override is set, use it to determine the final movement.
             // Otherwise, use the vector calculated by this component.
