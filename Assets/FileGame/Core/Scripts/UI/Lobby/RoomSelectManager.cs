@@ -287,9 +287,23 @@ public class RoomSelectManager : MonoBehaviour
 
             ISession session = await MultiplayerService.Instance.CreateSessionAsync(sessionOptions);
 
+            
             bool isHost = SessionRoleUtility.IsLocalPlayerHost(session);
             SessionFlowContext.SetCurrentSession(session, isHost);
             RoomRuntimeState.EnterLobby(session, isLocked);
+
+            if (NetworkGameBootstrap.Instance == null)
+            {
+                SetStatus("NetworkGameBootstrap not found in scene.");
+                return;
+            }
+
+            bool started = NetworkGameBootstrap.Instance.StartHostLocal();
+            if (!started)
+            {
+                SetStatus("Failed to start host network.");
+                return;
+            }
 
             SceneManager.LoadScene(lobbySceneName);
         }
@@ -430,8 +444,25 @@ public class RoomSelectManager : MonoBehaviour
         }
 
         bool isHost = SessionRoleUtility.IsLocalPlayerHost(session);
+
         SessionFlowContext.SetCurrentSession(session, isHost);
         RoomRuntimeState.EnterLobby(session, session.IsLocked);
+
+        if (NetworkGameBootstrap.Instance == null)
+        {
+            SetStatus("NetworkGameBootstrap not found in scene.");
+            return;
+        }
+
+        bool started = isHost
+            ? NetworkGameBootstrap.Instance.StartHostLocal()
+            : NetworkGameBootstrap.Instance.StartClientLocal();
+
+        if (!started)
+        {
+            SetStatus(isHost ? "Failed to start host network." : "Failed to start client network.");
+            return;
+        }
 
         SceneManager.LoadScene(lobbySceneName);
     }

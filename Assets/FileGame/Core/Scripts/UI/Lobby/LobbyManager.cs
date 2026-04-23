@@ -6,6 +6,8 @@ using Unity.Services.Multiplayer;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using Unity.Netcode;
+using UnityEngine.SceneManagement;
 
 public class LobbyManager : MonoBehaviour
 {
@@ -153,17 +155,76 @@ public class LobbyManager : MonoBehaviour
         SetStatus(isLocalHost ? "You are now the host." : "Host changed.");
     }
 
+    //private void OnClickStartGame()
+    //{
+    //    if (!SessionFlowContext.IsHost || isBusy || isSceneChanging)
+    //        return;
+
+    //    bool isLocked = lockRoomToggle != null && lockRoomToggle.isOn;
+
+    //    RoomRuntimeState.StartGame(isLocked);
+
+    //    isSceneChanging = true;
+    //    SceneManager.LoadScene(gameSceneName);
+    //}
+
     private void OnClickStartGame()
+    {
+        _ = StartGameForAllAsync();
+    }
+
+    private async Task StartGameForAllAsync()
     {
         if (!SessionFlowContext.IsHost || isBusy || isSceneChanging)
             return;
 
-        bool isLocked = lockRoomToggle != null && lockRoomToggle.isOn;
+        if (NetworkGameBootstrap.Instance == null)
+        {
+            SetStatus("NetworkGameBootstrap not found.");
+            return;
+        }
 
-        RoomRuntimeState.StartGame(isLocked);
+        if (!NetworkGameBootstrap.Instance.IsNetworkRunning())
+        {
+            SetStatus("NetworkManager is not running.");
+            return;
+        }
 
-        isSceneChanging = true;
-        SceneManager.LoadScene(gameSceneName);
+        if (!NetworkGameBootstrap.Instance.IsHost() && !NetworkGameBootstrap.Instance.IsServer())
+        {
+            SetStatus("Only the host can start the game.");
+            return;
+        }
+
+        if (Unity.Netcode.NetworkManager.Singleton == null ||
+            Unity.Netcode.NetworkManager.Singleton.SceneManager == null)
+        {
+            SetStatus("Network scene management is not available.");
+            return;
+        }
+
+        try
+        {
+            SetBusy(true, "Starting game for all players...");
+
+            bool isLocked = lockRoomToggle != null && lockRoomToggle.isOn;
+            RoomRuntimeState.StartGame(isLocked);
+
+            Unity.Netcode.NetworkManager.Singleton.SceneManager.LoadScene(
+                gameSceneName,
+                UnityEngine.SceneManagement.LoadSceneMode.Single);
+
+            isSceneChanging = true;
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Failed to start game: {ex.Message}");
+            Debug.LogException(ex);
+        }
+        finally
+        {
+            SetBusy(false);
+        }
     }
 
     private void OnClickLeaveRoom()
@@ -211,6 +272,9 @@ public class LobbyManager : MonoBehaviour
         }
         finally
         {
+            if (NetworkGameBootstrap.Instance != null)
+                NetworkGameBootstrap.Instance.Shutdown();
+
             SessionFlowContext.Clear();
             SceneManager.LoadScene(roomSelectSceneName);
         }
