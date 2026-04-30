@@ -210,7 +210,7 @@ namespace Blocks.Gameplay.Core
                 return;
             }
 
-            if (isSprinting && coreStats.GetCurrentValue(StatKeys.Stamina) < 1f)
+            if (isSprinting && coreStats.GetCurrentValue(StatKeys.Health) < 1f)
             {
                 coreMovement.SetSprintState(false);
                 return;
@@ -237,7 +237,7 @@ namespace Blocks.Gameplay.Core
             }
 
             float jumpStaminaCost = CoreMovement.GetAbilityStaminaCost<JumpAbility>();
-            if (coreStats.TryConsumeStat(StatKeys.Stamina, jumpStaminaCost, OwnerClientId))
+            if (coreStats.TryConsumeStat(StatKeys.Health, jumpStaminaCost, OwnerClientId))
             {
                 coreMovement.PerformJump();
             }
@@ -422,7 +422,7 @@ namespace Blocks.Gameplay.Core
             if (!coreMovement.IsSprinting || coreMovement.CurrentSpeed <= 0.1f || !coreMovement.IsGrounded) return;
 
             float staminaToConsume = CoreMovement.GetAbilityStaminaCost<WalkAbility>() * Time.deltaTime;
-            if (!coreStats.TryConsumeStat(StatKeys.Stamina, staminaToConsume, OwnerClientId))
+            if (!coreStats.TryConsumeStat(StatKeys.Health, staminaToConsume, OwnerClientId))
             {
                 coreMovement.SetSprintState(false);
             }

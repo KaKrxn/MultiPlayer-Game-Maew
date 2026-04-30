@@ -1,0 +1,27 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements">
+    <Style src="PlayerStatusBar.uss" />
+    <ui:VisualElement name="status-root" class="status-root">
+        
+        <!-- Main Bar -->
+        <ui:VisualElement name="main-bar-container" class="main-bar-container">
+            <ui:VisualElement name="main-bar-background" class="bar-background">
+                <ui:VisualElement name="energy-fill" class="fill-bar energy-color" />
+                <ui:VisualElement name="spacer" style="flex-grow: 1;" />
+                <ui:VisualElement name="pain-fill" class="fill-bar pain-color stripe-pattern" />
+                <ui:VisualElement name="weight-fill" class="fill-bar weight-color stripe-pattern" />
+                <ui:VisualElement name="hunger-fill" class="fill-bar hunger-color stripe-pattern" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- Extra Energy Bar (Below Main Bar) -->
+        <ui:VisualElement name="extra-container" class="extra-container">
+            <ui:VisualElement name="extra-icon-bolt" class="icon-bolt" />
+            <ui:VisualElement name="extra-bar-container" class="extra-bar-container">
+                <ui:VisualElement name="extra-bar-background" class="bar-background">
+                    <ui:VisualElement name="extra-energy-fill" class="fill-bar extra-energy-color" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+    </ui:VisualElement>
+</ui:UXML>

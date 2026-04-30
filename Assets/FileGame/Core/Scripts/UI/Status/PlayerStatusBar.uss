@@ -1,0 +1,92 @@
+.status-root {
+    position: absolute;
+    bottom: 40px;
+    left: 40px;
+    width: 450px;
+    flex-direction: column;
+}
+
+/* Main Bar */
+.main-bar-container {
+    height: 35px;
+    width: 100%;
+    margin-bottom: 8px;
+    /* Soft border like the reference image */
+    border-width: 3px;
+    border-color: #F8F5E1; /* Light cream border */
+    border-radius: 12px;
+    background-color: transparent;
+}
+
+.bar-background {
+    flex-direction: row;
+    height: 100%;
+    width: 100%;
+    background-color: rgba(0, 0, 0, 0.4); /* Dark semi-transparent background for empty space */
+    border-radius: 9px; /* slightly smaller to fit inside border */
+    overflow: hidden;
+}
+
+/* Fill Bars common */
+.fill-bar {
+    height: 100%;
+    transition-property: width;
+    transition-duration: 0.2s;
+    transition-timing-function: ease-out;
+}
+
+/* Specific Colors matching the reference */
+.energy-color {
+    background-color: #66DD00; /* Vibrant Green */
+}
+
+.pain-color {
+    background-color: #990033; /* Dark purplish-red for pain */
+}
+
+.weight-color {
+    background-color: #A05A2C; /* Brown for weight */
+}
+
+.hunger-color {
+    background-color: #FFB300; /* Orange/Yellow for hunger */
+}
+
+.extra-energy-color {
+    background-color: #CCFF00; /* Bright yellow-green */
+}
+
+/* Stripe Pattern using repeated linear gradient (UI Toolkit 2022+ supports some gradient/texture, using borders or repeating background if possible)
+   Since UI Toolkit doesn't natively support css diagonal stripes easily without a texture, we apply a darker tint or just rely on color for now,
+   or we can use a texture if provided. We will just use the base color here since we don't have the stripe texture file.
+*/
+.stripe-pattern {
+    /* If a texture were available, we would set it here. For now, the base color is sufficient to differentiate. */
+}
+
+/* Extra Bar */
+.extra-container {
+    flex-direction: row;
+    height: 25px;
+    width: 60%;
+    align-items: center;
+}
+
+.icon-bolt {
+    width: 20px;
+    height: 24px;
+    margin-right: 8px;
+    /* We would apply an image here, using a color block as placeholder */
+    background-color: #CCFF00;
+    -unity-background-image-tint-color: white;
+    /* Simple bolt shape using mask or border trick isn't natively trivial in raw USS, so it assumes an icon exists or we just rely on color block. */
+}
+
+.extra-bar-container {
+    flex-grow: 1;
+    height: 100%;
+    border-width: 3px;
+    border-color: #F8F5E1;
+    border-radius: 10px;
+    background-color: transparent;
+}

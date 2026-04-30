@@ -36,9 +36,12 @@ namespace Blocks.Gameplay.Core
         private float m_TargetSpeed;
         private Vector3 m_StartPosition;
 
+        private int m_PainHash;
+
         public override void OnNetworkSpawn()
         {
             m_StartPosition = transform.position;
+            m_PainHash = Animator.StringToHash("Pain");
 
             if (IsServer)
             {
@@ -175,11 +178,9 @@ namespace Blocks.Gameplay.Core
         {
             if (player.CoreStats != null)
             {
-                // Correct way to apply damage in Blocks framework: 
-                // ModifyStat(hash, negative amount, sourcePlayerId, sourceType)
-                // Source ID 0 is often used for environmental/system damage
-                player.CoreStats.ModifyStat(StatKeys.Health, -damagePerTick, 0, ModificationSource.Direct);
-                Debug.Log($"[ToxicWave] Applied {damagePerTick} damage to {player.PlayerName}");
+                // Applied as gradual Pain (+5% per tick)
+                player.CoreStats.ModifyStat(m_PainHash, 5f, 0, ModificationSource.Environmental);
+                Debug.Log($"[ToxicWave] Applied 5% Pain damage to {player.PlayerName}");
             }
         }
     }

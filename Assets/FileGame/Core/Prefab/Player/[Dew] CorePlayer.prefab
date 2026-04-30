@@ -79,6 +79,7 @@ GameObject:
   - component: {fileID: 6174938522493390210}
   - component: {fileID: 7159615909897646262}
   - component: {fileID: -9161811790333028002}
+  - component: {fileID: 4375252124823242875}
   m_Layer: 3
   m_Name: '[Dew] CorePlayer'
   m_TagString: Player
@@ -141,7 +142,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  GlobalObjectIdHash: 2884866745
+  GlobalObjectIdHash: 2115041792
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -317,7 +318,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   ShowTopMostFoldoutHeaderGroup: 1
-  statsConfig: {fileID: 11400000, guid: 87f9c364113ae4162a7c8761b744dcd9, type: 2}
+  statsConfig: {fileID: 11400000, guid: c161de82cbcae1d41b4b2f476bd5e0cc, type: 2}
   onStatChangedEvent: {fileID: 11400000, guid: 3c76cce5664154d7fadbc8eaf8987962, type: 2}
   onStatDepletedEvent: {fileID: 11400000, guid: aced99a6f7f354e5c87c8fab171c4c31, type: 2}
 --- !u!114 &1738836199841815264
@@ -539,6 +540,22 @@ MonoBehaviour:
   aimSensitivity: 0.5
   onAimToggled: {fileID: 11400000, guid: 7980b19c34cba49e0ab89edafbc46cce, type: 2}
   onAimingStateChanged: {fileID: 11400000, guid: 1dc6e9c29e890454fbff5f80b1fbf777, type: 2}
+--- !u!114 &4375252124823242875
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4416926081852918481}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 623952c056117874aab11a8d9c27c6c0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FileGame.Core.PlayerSurvivalSystem
+  ShowTopMostFoldoutHeaderGroup: 1
+  damageToPainRatio: 1
+  hungerInterval: 120
+  hungerAmountPerTick: 10
 --- !u!1 &8338988566280778634
 GameObject:
   m_ObjectHideFlags: 0

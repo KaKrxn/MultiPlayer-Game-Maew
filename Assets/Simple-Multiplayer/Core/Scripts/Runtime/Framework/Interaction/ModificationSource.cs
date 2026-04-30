@@ -8,6 +8,8 @@ namespace Blocks.Gameplay.Core
         Healing,
         Consumption,
         Environmental,
-        Direct
+        Direct,
+        Natural,
+        Injury
     }
 }

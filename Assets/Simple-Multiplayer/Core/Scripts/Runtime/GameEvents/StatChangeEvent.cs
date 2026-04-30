@@ -31,5 +31,6 @@ namespace Blocks.Gameplay.Core
         public int statID;
         public float currentValue;
         public float maxValue;
+        public float changeAmount;
     }
 }
