@@ -30,8 +30,14 @@ EditorBuildSettings:
     path: Assets/FileGame/Core/Scenes/[Dew] Test Scene.unity
     guid: cb52d0e6f27f2dc47b055612f26766aa
   - enabled: 1
-    path: Assets/FileGame/Core/Scenes/[Ten] Test Player.unity
-    guid: b3156c56112fac2479b66cc3e2b1e33a
+    path: Assets/FileGame/Core/Scenes/[BB] MainMenu Scene.unity
+    guid: e8c559c0c8e37b24a8f578fe5d1a65b2
+  - enabled: 1
+    path: Assets/FileGame/Core/Scenes/Lobby/RoomSelect.unity
+    guid: 7bdc06a88ac028143ac64b618f948184
+  - enabled: 1
+    path: Assets/FileGame/Core/Scenes/Lobby/Lobby.unity
+    guid: 455957b1d21508c48932200a8c3dbf93
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0
