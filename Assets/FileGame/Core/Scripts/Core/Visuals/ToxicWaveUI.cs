@@ -11,6 +11,9 @@ namespace Blocks.Gameplay.Core
     {
         public static ToxicWaveUI Instance;
 
+        [Header("References")]
+        [SerializeField] private DayNightCycleManager dayNightManager;
+
         [Header("UI Components")]
         [SerializeField] private TMP_Text warningText;
         [SerializeField] private CanvasGroup canvasGroup;
@@ -37,17 +40,43 @@ namespace Blocks.Gameplay.Core
             }
 
             if (canvasGroup != null) canvasGroup.alpha = 0;
+
+            if (dayNightManager == null)
+            {
+                dayNightManager = FindFirstObjectByType<DayNightCycleManager>();
+            }
+
+            if (dayNightManager != null)
+            {
+                dayNightManager.OnStateChanged += HandleDayNightChanged;
+            }
         }
 
-        public void ShowWarning()
+        private void OnDestroy()
+        {
+            if (dayNightManager != null)
+            {
+                dayNightManager.OnStateChanged -= HandleDayNightChanged;
+            }
+        }
+
+        private void HandleDayNightChanged(DayNightState state)
+        {
+            if (state == DayNightState.Night)
+            {
+                ShowWarning("Beware Your back");
+            }
+        }
+
+        public void ShowWarning(string customMessage = null)
         {
             StopAllCoroutines();
-            StartCoroutine(WarningSequence());
+            StartCoroutine(WarningSequence(customMessage));
         }
 
-        private IEnumerator WarningSequence()
+        private IEnumerator WarningSequence(string customMessage)
         {
-            if (warningText != null) warningText.text = message;
+            if (warningText != null) warningText.text = !string.IsNullOrEmpty(customMessage) ? customMessage : message;
             if (canvasGroup == null) yield break;
 
             // Punch scale effect

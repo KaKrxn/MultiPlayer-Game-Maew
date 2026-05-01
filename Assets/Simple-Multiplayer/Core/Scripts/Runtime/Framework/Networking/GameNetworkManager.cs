@@ -101,6 +101,21 @@ namespace Blocks.Gameplay.Core
                 OnClientDisconnectCallback -= HandleClientDisconnect;
                 OnServerStarted -= HandleServerStarted;
                 Instance = null;
+                
+                // Force a clean shutdown to ensure the transport is unbound 
+                // and port 7777 is released when exiting play mode.
+                if (IsListening)
+                {
+                    Shutdown();
+                }
+            }
+        }
+
+        private void OnApplicationQuit()
+        {
+            if (IsListening)
+            {
+                Shutdown();
             }
         }
 

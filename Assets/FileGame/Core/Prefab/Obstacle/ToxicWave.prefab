@@ -180,8 +180,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Blocks.Gameplay.Core.ToxicWaveController
   ShowTopMostFoldoutHeaderGroup: 1
-  baseMoveSpeed: 2
-  nightSpeedMultiplier: 2.5
+  baseMoveSpeed: 2.5
+  nightSpeedMultiplier: 10
   triggerDistance: 1
   moveDirection: {x: 0, y: 0, z: 1}
   isActive: 1

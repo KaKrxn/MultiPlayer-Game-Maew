@@ -35,6 +35,8 @@ namespace Blocks.Gameplay.Core
         /// </summary>
         public bool IsEnabled { get; set; } = true;
 
+        public event System.Action<IInteractable> OnFocusChanged;
+
         private CorePlayerManager m_PlayerManager;
         private Camera m_MainCamera;
         private IInteractable m_CurrentFocusedInteractable;
@@ -142,7 +144,11 @@ namespace Blocks.Gameplay.Core
 
         private void ClearFocus()
         {
-            m_CurrentFocusedInteractable = null;
+            if (m_CurrentFocusedInteractable != null)
+            {
+                m_CurrentFocusedInteractable = null;
+                OnFocusChanged?.Invoke(null);
+            }
         }
 
         /// <summary>
@@ -203,6 +209,7 @@ namespace Blocks.Gameplay.Core
             if (bestTarget != m_CurrentFocusedInteractable)
             {
                 m_CurrentFocusedInteractable = bestTarget;
+                OnFocusChanged?.Invoke(m_CurrentFocusedInteractable);
 
                 // Automatically interact when entering focus for OnFocusEnter trigger mode
                 if (m_CurrentFocusedInteractable != null && m_CurrentFocusedInteractable.TriggerMode == InteractionTriggerMode.OnFocusEnter)

@@ -12,9 +12,7 @@ namespace Blocks.Gameplay.Core
     public struct PlayerMaterialSet
     {
         public string name;
-        public Material body;
-        public Material arms;
-        public Material legs;
+        public Material material;
     }
 
     /// <summary>
@@ -32,6 +30,8 @@ namespace Blocks.Gameplay.Core
         [SerializeField] private ComponentController componentController;
 
         [Header("Visual Customization")]
+        [Tooltip("If disabled, your custom model's original materials will be preserved.")]
+        [SerializeField] private bool overrideMaterialsAndColors = true;
         [Tooltip("The Renderer (MeshRenderer or SkinnedMeshRenderer) to apply materials to.")]
         [SerializeField] private Renderer targetRenderer;
         [Tooltip("Define the 4 sets of colors here.")]
@@ -111,7 +111,7 @@ namespace Blocks.Gameplay.Core
         /// </summary>
         private void ApplyMaterialSet()
         {
-            if (targetRenderer == null || materialSets == null || materialSets.Count == 0)
+            if (!overrideMaterialsAndColors || targetRenderer == null || materialSets == null || materialSets.Count == 0)
             {
                 return;
             }
@@ -122,12 +122,12 @@ namespace Blocks.Gameplay.Core
 
             PlayerMaterialSet selectedSet = materialSets[index];
 
-            Material[] newMaterials = new Material[3];
-            newMaterials[0] = selectedSet.body;
-            newMaterials[1] = selectedSet.arms;
-            newMaterials[2] = selectedSet.legs;
-
-            targetRenderer.materials = newMaterials;
+            Material[] currentMaterials = targetRenderer.materials;
+            if (currentMaterials.Length > 0 && selectedSet.material != null)
+            {
+                currentMaterials[0] = selectedSet.material;
+                targetRenderer.materials = currentMaterials;
+            }
         }
 
         /// <summary>

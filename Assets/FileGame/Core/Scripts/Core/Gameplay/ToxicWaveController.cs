@@ -141,7 +141,7 @@ namespace Blocks.Gameplay.Core
             Debug.Log("[ToxicWaveController] TriggerWarningClientRpc received!");
             if (ToxicWaveUI.Instance != null)
             {
-                ToxicWaveUI.Instance.ShowWarning();
+                ToxicWaveUI.Instance.ShowWarning("Toxin Incoming");
             }
             else
             {
