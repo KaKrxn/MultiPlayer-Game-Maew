@@ -142,7 +142,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  GlobalObjectIdHash: 2115041792
+  GlobalObjectIdHash: 2884866745
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -194,7 +194,7 @@ MonoBehaviour:
     InvertEnabled: 0
     EnableDelay: 0
     DisableDelay: 0
-    Component: {fileID: 3431930237784142499}
+    Component: {fileID: 0}
 --- !u!114 &3213608192859822684
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -439,7 +439,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Blocks.Gameplay.Core::Blocks.Gameplay.Core.VisualsAddon
   playerAnimator: {fileID: 4397250744277509611}
   componentController: {fileID: 7666903440408712975}
-  targetRenderer: {fileID: 3431930237784142499}
+  targetRenderer: {fileID: 2026255206485606787}
   materialSets:
   - name: Blue
     body: {fileID: 2100000, guid: 138f64fd3a5cc8d46ad707e6a9c154d5, type: 2}
@@ -655,9 +655,9 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 5001140451625184272}
   m_SourcePrefab: {fileID: 100100000, guid: d44e26f98f3e448988291f85f97cc468, type: 3}
---- !u!137 &3431930237784142499 stripped
+--- !u!137 &2026255206485606787 stripped
 SkinnedMeshRenderer:
-  m_CorrespondingSourceObject: {fileID: 8866672347713305132, guid: d44e26f98f3e448988291f85f97cc468, type: 3}
+  m_CorrespondingSourceObject: {fileID: 5238426905344805132, guid: d44e26f98f3e448988291f85f97cc468, type: 3}
   m_PrefabInstance: {fileID: 6101275629619071119}
   m_PrefabAsset: {fileID: 0}
 --- !u!95 &4397250744277509611 stripped
