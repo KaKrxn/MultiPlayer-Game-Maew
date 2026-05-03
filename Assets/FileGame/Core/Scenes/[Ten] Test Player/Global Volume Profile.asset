@@ -15,7 +15,7 @@ MonoBehaviour:
   active: 1
   lift:
     m_OverrideState: 1
-    m_Value: {x: 1, y: 0.99001193, z: 0.900574, w: 0}
+    m_Value: {x: 1, y: 0.98844194, z: 0.9919935, w: 0}
   gamma:
     m_OverrideState: 1
     m_Value: {x: 0.9349251, y: 0.9437722, z: 1, w: 0.05016736}
@@ -363,10 +363,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 97c23e3b12dc18c42a140437e53d3951, type: 3}
   m_Name: Tonemapping
   m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.Tonemapping
-  active: 1
+  active: 0
   mode:
     m_OverrideState: 1
-    m_Value: 2
+    m_Value: 0
   neutralHDRRangeReductionMode:
     m_OverrideState: 0
     m_Value: 2

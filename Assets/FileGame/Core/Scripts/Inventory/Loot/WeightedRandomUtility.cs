@@ -34,6 +34,33 @@ public static class WeightedRandomUtility
     /// </summary>
     public static int CalculateDurability(LootItemData data)
     {
-        return Random.Range(data.minDurability, data.maxDurability + 1);
+        if (data == null) return 0;
+
+        int minDurability = Mathf.Min(data.minDurability, data.maxDurability);
+        int maxDurability = Mathf.Max(data.minDurability, data.maxDurability);
+        float t = Mathf.Pow(Random.value, 1.8f);
+        float value = Mathf.Lerp(minDurability, maxDurability, t);
+
+        return Mathf.RoundToInt(Mathf.Clamp(value, minDurability, maxDurability));
+    }
+
+    /// <summary>
+    /// Calculates a random weight for an item data, biased toward heavier rolls.
+    /// </summary>
+    public static float CalculateWeight(LootItemData data)
+    {
+        if (data == null) return 0f;
+
+        float minWeightKg = Mathf.Min(data.minWeightKg, data.maxWeightKg);
+        float maxWeightKg = Mathf.Max(data.minWeightKg, data.maxWeightKg);
+        float t = 1f - Mathf.Pow(Random.value, 2.4f);
+        float value = Mathf.Lerp(minWeightKg, maxWeightKg, t);
+
+        return RoundWeight(Mathf.Clamp(value, minWeightKg, maxWeightKg));
+    }
+
+    public static float RoundWeight(float weightKg)
+    {
+        return Mathf.Round(Mathf.Max(0f, weightKg) * 10f) / 10f;
     }
 }

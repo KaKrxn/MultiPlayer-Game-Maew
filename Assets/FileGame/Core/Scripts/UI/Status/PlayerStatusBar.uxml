@@ -1,15 +1,31 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements">
     <Style src="PlayerStatusBar.uss" />
     <ui:VisualElement name="status-root" class="status-root">
-        
-        <!-- Main Bar -->
-        <ui:VisualElement name="main-bar-container" class="main-bar-container">
-            <ui:VisualElement name="main-bar-background" class="bar-background">
-                <ui:VisualElement name="energy-fill" class="fill-bar energy-color" />
-                <ui:VisualElement name="spacer" style="flex-grow: 1;" />
-                <ui:VisualElement name="pain-fill" class="fill-bar pain-color stripe-pattern" />
-                <ui:VisualElement name="weight-fill" class="fill-bar weight-color stripe-pattern" />
-                <ui:VisualElement name="hunger-fill" class="fill-bar hunger-color stripe-pattern" />
+
+        <!-- Main Bar Row (icons float above bar) -->
+        <ui:VisualElement name="main-bar-row" class="main-bar-row">
+
+            <!-- Debuff icons layer (absolute positioned above the bar) -->
+            <ui:VisualElement name="icons-layer" class="icons-layer">
+                <ui:VisualElement name="pain-icon" class="debuff-icon pain-icon-img" />
+                <ui:VisualElement name="weight-icon" class="debuff-icon weight-icon-img" />
+                <ui:VisualElement name="hunger-icon" class="debuff-icon hunger-icon-img" />
+            </ui:VisualElement>
+
+            <!-- Main Bar = white-bordered rounded container (the "track") -->
+            <ui:VisualElement name="main-bar-container" class="main-bar-container">
+                <!-- Inner track with padding around the individual bars -->
+                <ui:VisualElement name="main-bar-track" class="main-bar-track">
+                    <!-- Energy Ghost Bar (dimmer green, shows previous amount) -->
+                    <ui:VisualElement name="energy-ghost-fill" class="stat-bar energy-ghost-color" />
+                    <!-- Energy bar (flat green, grows from left) -->
+                    <ui:VisualElement name="energy-fill" class="stat-bar energy-color" />
+                    
+                    <!-- Debuff bars (each is its own rounded bar with stripe, anchored right) -->
+                    <ui:VisualElement name="pain-fill" class="stat-bar debuff-bar pain-color" />
+                    <ui:VisualElement name="weight-fill" class="stat-bar debuff-bar weight-color" />
+                    <ui:VisualElement name="hunger-fill" class="stat-bar debuff-bar hunger-color" />
+                </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
 
@@ -17,8 +33,8 @@
         <ui:VisualElement name="extra-container" class="extra-container">
             <ui:VisualElement name="extra-icon-bolt" class="icon-bolt" />
             <ui:VisualElement name="extra-bar-container" class="extra-bar-container">
-                <ui:VisualElement name="extra-bar-background" class="bar-background">
-                    <ui:VisualElement name="extra-energy-fill" class="fill-bar extra-energy-color" />
+                <ui:VisualElement name="extra-bar-track" class="extra-bar-track">
+                    <ui:VisualElement name="extra-energy-fill" class="stat-bar extra-energy-color" />
                 </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>

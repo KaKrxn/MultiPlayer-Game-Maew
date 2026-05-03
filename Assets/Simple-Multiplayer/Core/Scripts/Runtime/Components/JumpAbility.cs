@@ -19,10 +19,13 @@ namespace Blocks.Gameplay.Core
         /// </summary>
         public int Priority => 10;
 
+        [Tooltip("The stamina cost required to perform a jump.")]
+        [SerializeField] private float staminaCost = 10f;
+
         /// <summary>
         /// Gets the stamina cost required to perform a jump.
         /// </summary>
-        public float StaminaCost => 10f;
+        public float StaminaCost => staminaCost;
 
         [Header("Jump Settings")]
         [Tooltip("Time in seconds after landing before the player can jump again.")]

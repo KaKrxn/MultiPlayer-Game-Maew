@@ -1,6 +1,7 @@
 using UnityEngine;
 using Unity.Netcode;
-using System.Linq; // สำหรับใช้ Find
+using System.Linq;
+using FileGame.Core;
 
 public class PlayerDropItem : NetworkBehaviour
 {
@@ -11,34 +12,54 @@ public class PlayerDropItem : NetworkBehaviour
         Instance = this;
     }
 
+    [Header("Server Item Registry")]
+    [SerializeField] private ItemData[] serverItemRegistry;
+
     [ServerRpc(RequireOwnership = false)]
-    public void RequestSpawnItemServerRpc(string itemName, Vector3 position, Quaternion rotation)
+    public void RequestSpawnItemServerRpc(string itemName, int durabilityPercent, float weightKg, Vector3 position, Quaternion rotation, ServerRpcParams serverRpcParams = default)
     {
-        // ดึงลิสต์ allItems จาก InventoryManager.instance
-        if (InventoryManager.instance == null)
+        if (serverItemRegistry == null || serverItemRegistry.Length == 0)
         {
-            Debug.LogError("InventoryManager instance is null! ไม่สามารถหาไอเทมได้");
+            Debug.LogError("PlayerDropItem: serverItemRegistry is empty.");
             return;
         }
 
-        // ค้นหา Prefab จากชื่อที่ส่งมา
-        Item prefabToSpawn = InventoryManager.instance.allItems.Find(x => x.ItemName == itemName);
+        ItemData itemToDrop = serverItemRegistry.FirstOrDefault(x => x != null && x.itemName == itemName);
 
-        if (prefabToSpawn != null)
+        if (itemToDrop != null && itemToDrop.dropPrefab != null)
         {
-            // สร้าง Object ที่ Server
-            GameObject spawnedObject = Instantiate(prefabToSpawn.gameObject, position, rotation);
+            GameObject spawnedObject = Instantiate(itemToDrop.dropPrefab, position, rotation);
+            Item itemComponent = spawnedObject.GetComponent<Item>();
+            if (itemComponent != null)
+            {
+                itemComponent.ApplyInstanceData(new ItemInstanceData(itemToDrop, durabilityPercent, weightKg));
+            }
 
-            // สั่งให้ปรากฏบน Network (Client ทุกคนจะเห็น)
             NetworkObject netObj = spawnedObject.GetComponent<NetworkObject>();
             if (netObj != null)
             {
                 netObj.Spawn();
             }
+
+            ApplyWeightToPlayer(serverRpcParams.Receive.SenderClientId, -weightKg);
         }
         else
         {
-            Debug.LogWarning($"Server: ไม่พบไอเทมชื่อ {itemName} ในลิสต์ allItems ของ InventoryManager");
+            Debug.LogWarning($"Server: Could not spawn item '{itemName}' from serverItemRegistry.");
+        }
+    }
+
+    private void ApplyWeightToPlayer(ulong clientId, float kgDelta)
+    {
+        if (NetworkManager.Singleton == null) return;
+        if (!NetworkManager.Singleton.ConnectedClients.TryGetValue(clientId, out var clientData)) return;
+
+        NetworkObject playerObject = clientData.PlayerObject;
+        if (playerObject == null) return;
+
+        if (playerObject.TryGetComponent<PlayerSurvivalSystem>(out var survivalSystem))
+        {
+            survivalSystem.ApplyCarriedWeightDelta(kgDelta);
         }
     }
 }

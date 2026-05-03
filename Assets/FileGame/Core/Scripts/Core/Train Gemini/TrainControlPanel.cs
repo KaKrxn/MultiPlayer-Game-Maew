@@ -1,5 +1,6 @@
 using UnityEngine;
 using Unity.Netcode;
+using Blocks.Gameplay.Core;
 
 public class TrainControlPanel : NetworkBehaviour, IInteractable
 {
@@ -16,7 +17,27 @@ public class TrainControlPanel : NetworkBehaviour, IInteractable
     [Tooltip("กำหนดว่าปุ่มนี้ทำหน้าที่อะไร")]
     public ControlType buttonType;
 
-    public void OnInteract(ulong interactorClientId)
+    // --- IInteractable Implementation ---
+    public InteractionTriggerMode TriggerMode => InteractionTriggerMode.OnButtonPress;
+    public int Priority => 10;
+    public string InteractionPromptText => buttonType == ControlType.Forward ? "Move Forward" : "Brake";
+    
+    public bool CanInteract(GameObject interactor) => true;
+
+    public void Interact(GameObject interactor)
+    {
+        ulong clientId = 0;
+        if (interactor.TryGetComponent<NetworkObject>(out var netObj))
+        {
+            clientId = netObj.OwnerClientId;
+        }
+
+        // Send RPC to Server to process the state change authoritatively
+        RequestControlServerRpc(clientId);
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    private void RequestControlServerRpc(ulong interactorClientId)
     {
         if (!IsServer) return;
 

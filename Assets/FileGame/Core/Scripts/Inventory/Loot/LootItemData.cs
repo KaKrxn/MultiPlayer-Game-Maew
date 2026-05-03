@@ -21,6 +21,11 @@ public class LootItemData
     public int minDurability = 50;
     [Range(0, 100)]
     public int maxDurability = 100;
+
+    [Min(0f)]
+    public float minWeightKg = 0.1f;
+    [Min(0f)]
+    public float maxWeightKg = 1f;
     
     public int dropWeight = 10;
 }

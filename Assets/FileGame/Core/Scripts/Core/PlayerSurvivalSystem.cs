@@ -9,8 +9,11 @@ namespace FileGame.Core
     /// managing Hunger over time, and enforcing Vitality (Death) logic based on total Debuffs.
     /// </summary>
     [RequireComponent(typeof(CoreStatsHandler))]
-    public class PlayerSurvivalSystem : NetworkBehaviour
+    public class PlayerSurvivalSystem : NetworkBehaviour, IStaminaProvider
     {
+        public float JumpEnergyCost => jumpEnergyCost;
+        public float SprintEnergyCost => sprintEnergyCost;
+
         [Header("Pain Logic")]
         [Tooltip("Percentage of health loss that is converted to permanent Pain.")]
         [Range(0f, 1f)]
@@ -22,7 +25,14 @@ namespace FileGame.Core
         [Tooltip("Amount of hunger to add every interval (percentage).")]
         public float hungerAmountPerTick = 10f;
 
+        [Header("Energy Consumption (Balance)")]
+        [Tooltip("Amount of Energy consumed per jump. If -1, uses default Ability cost.")]
+        public float jumpEnergyCost = -1f;
+        [Tooltip("Amount of Energy consumed per second while sprinting. If -1, uses default Ability cost.")]
+        public float sprintEnergyCost = -1f;
+
         private CoreStatsHandler stats;
+        private CoreMovement movement;
         private int healthHash;
         private int painHash;
         private int hungerHash;
@@ -34,6 +44,7 @@ namespace FileGame.Core
         private void Awake()
         {
             stats = GetComponent<CoreStatsHandler>();
+            movement = GetComponent<CoreMovement>();
             healthHash = StatKeys.Health;
             painHash = Animator.StringToHash("Pain");
             hungerHash = Animator.StringToHash("Hunger");
@@ -73,6 +84,20 @@ namespace FileGame.Core
             Debug.Log($"[Survival] Swpawn Initialized: Vitality={stats.GetCurrentValue(vitalityHash)}");
         }
 
+        public void ApplyCarriedWeightDelta(float kgDelta)
+        {
+            if (!IsServer || stats == null) return;
+
+            float currentWeight = stats.GetCurrentValue(weightHash);
+            float targetWeight = Mathf.Max(0f, currentWeight + (kgDelta * 10f));
+            float appliedDelta = targetWeight - currentWeight;
+
+            if (Mathf.Abs(appliedDelta) > 0.001f)
+            {
+                stats.ModifyStat(weightHash, appliedDelta, OwnerClientId, ModificationSource.Natural);
+            }
+        }
+
         public override void OnNetworkDespawn()
         {
             if (IsServer && stats != null)
@@ -86,7 +111,20 @@ namespace FileGame.Core
             if (!IsServer) return;
 
             // Handle discrete Hunger ticks (+10% every 2 mins by default)
-            hungerTimer += Time.deltaTime;
+            // If running or jumping, hunger increases 10% faster
+            float hungerMultiplier = 1.0f;
+            if (movement != null)
+            {
+                bool isRunning = movement.IsSprinting && movement.CurrentSpeed > 0.1f && movement.IsGrounded;
+                bool isJumping = !movement.IsGrounded; // Consider any time in air as "exertion" for hunger logic
+                
+                if (isRunning || isJumping)
+                {
+                    hungerMultiplier = 1.1f;
+                }
+            }
+
+            hungerTimer += Time.deltaTime * hungerMultiplier;
             if (hungerTimer >= hungerInterval)
             {
                 hungerTimer -= hungerInterval;

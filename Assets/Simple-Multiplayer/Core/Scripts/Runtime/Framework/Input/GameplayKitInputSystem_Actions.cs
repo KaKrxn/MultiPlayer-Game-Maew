@@ -176,6 +176,15 @@ namespace Blocks.Gameplay.Core
                     ""initialStateCheck"": false
                 },
                 {
+                    ""name"": ""Interact"",
+                    ""type"": ""Button"",
+                    ""id"": ""96ea3e2d-548b-4b25-ae74-28a8fb3afbd8"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
+                },
+                {
                     ""name"": ""Menu"",
                     ""type"": ""Button"",
                     ""id"": ""4b214b87-8938-4110-bd1e-40636a4d1f7b"",
@@ -425,6 +434,17 @@ namespace Blocks.Gameplay.Core
                     ""processors"": """",
                     ""groups"": ""Gamepad"",
                     ""action"": ""Jump"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""e6ea3e2d-548b-4b25-ae74-28a8fb3afbd9"",
+                    ""path"": ""<Keyboard>/e"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Keyboard&Mouse"",
+                    ""action"": ""Interact"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 },
@@ -1098,6 +1118,7 @@ namespace Blocks.Gameplay.Core
             m_Player_PrimaryAction = m_Player.FindAction("PrimaryAction", throwIfNotFound: true);
             m_Player_SecondaryAction = m_Player.FindAction("SecondaryAction", throwIfNotFound: true);
             m_Player_Reload = m_Player.FindAction("Reload", throwIfNotFound: true);
+            m_Player_Interact = m_Player.FindAction("Interact", throwIfNotFound: true);
             m_Player_Menu = m_Player.FindAction("Menu", throwIfNotFound: true);
             // UI
             m_UI = asset.FindActionMap("UI", throwIfNotFound: true);
@@ -1201,6 +1222,7 @@ namespace Blocks.Gameplay.Core
         private readonly InputAction m_Player_PrimaryAction;
         private readonly InputAction m_Player_SecondaryAction;
         private readonly InputAction m_Player_Reload;
+        private readonly InputAction m_Player_Interact;
         private readonly InputAction m_Player_Menu;
         /// <summary>
         /// Provides access to input actions defined in input action map "Player".
@@ -1249,6 +1271,10 @@ namespace Blocks.Gameplay.Core
             /// Provides access to the underlying input action "Player/Reload".
             /// </summary>
             public InputAction @Reload => m_Wrapper.m_Player_Reload;
+            /// <summary>
+            /// Provides access to the underlying input action "Player/Interact".
+            /// </summary>
+            public InputAction @Interact => m_Wrapper.m_Player_Interact;
             /// <summary>
             /// Provides access to the underlying input action "Player/Menu".
             /// </summary>
@@ -1306,6 +1332,9 @@ namespace Blocks.Gameplay.Core
                 @Reload.started += instance.OnReload;
                 @Reload.performed += instance.OnReload;
                 @Reload.canceled += instance.OnReload;
+                @Interact.started += instance.OnInteract;
+                @Interact.performed += instance.OnInteract;
+                @Interact.canceled += instance.OnInteract;
                 @Menu.started += instance.OnMenu;
                 @Menu.performed += instance.OnMenu;
                 @Menu.canceled += instance.OnMenu;
@@ -1347,6 +1376,9 @@ namespace Blocks.Gameplay.Core
                 @Reload.started -= instance.OnReload;
                 @Reload.performed -= instance.OnReload;
                 @Reload.canceled -= instance.OnReload;
+                @Interact.started -= instance.OnInteract;
+                @Interact.performed -= instance.OnInteract;
+                @Interact.canceled -= instance.OnInteract;
                 @Menu.started -= instance.OnMenu;
                 @Menu.performed -= instance.OnMenu;
                 @Menu.canceled -= instance.OnMenu;
@@ -1713,6 +1745,13 @@ namespace Blocks.Gameplay.Core
             /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
             /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
             void OnReload(InputAction.CallbackContext context);
+            /// <summary>
+            /// Method invoked when associated input action "Interact" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+            /// </summary>
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+            /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+            void OnInteract(InputAction.CallbackContext context);
             /// <summary>
             /// Method invoked when associated input action "Menu" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
             /// </summary>

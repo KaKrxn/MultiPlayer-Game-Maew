@@ -1,8 +1,9 @@
 using UnityEngine;
 using Unity.Netcode;
 using System.Collections.Generic;
+using Blocks.Gameplay.Core;
 
-public class InteractableLootBox : AInteractable
+public class InteractableLootBox : NetworkBehaviour, IInteractable
 {
     [Header("Loot Configuration")]
     [SerializeField] private LootTableData lootTable;
@@ -15,17 +16,27 @@ public class InteractableLootBox : AInteractable
 
     private bool _isOpened = false;
 
-    public void Initialize(LootTableData table)
+    // --- IInteractable Implementation ---
+    public InteractionTriggerMode TriggerMode => InteractionTriggerMode.OnButtonPress;
+    public int Priority => 10;
+    public string InteractionPromptText => "Open Box";
+
+    public bool CanInteract(GameObject interactor)
     {
-        lootTable = table;
+        return !_isOpened;
     }
 
-    public override void Interact()
+    public void Interact(GameObject interactor)
     {
         if (_isOpened) return;
         
         // Client requests server to open the box
         OpenBoxServerRpc();
+    }
+
+    public void Initialize(LootTableData table)
+    {
+        lootTable = table;
     }
 
     [ServerRpc(RequireOwnership = false)]
@@ -36,29 +47,32 @@ public class InteractableLootBox : AInteractable
         _isOpened = true;
         
         // 1. Calculate Loot Autoritatively
-        LootItemData selectedLoot = WeightedRandomUtility.GetRandomItem(lootTable.possibleLoot);
-        
-        if (selectedLoot != null && selectedLoot.itemPrefab != null)
+        if (WeightedRandomUtility.GetRandomItem(lootTable.possibleLoot) is LootItemData selectedLoot)
         {
-            // 2. Calculate Durability
-            int durability = WeightedRandomUtility.CalculateDurability(selectedLoot);
-            
-            // 3. Spawn Loot
-            Vector3 targetPos = spawnPoint != null ? spawnPoint.position : transform.position + Vector3.up;
-            GameObject spawnedItem = Instantiate(selectedLoot.itemPrefab, targetPos, Quaternion.identity);
-            
-            // Assign durability if the item component exists
-            Item itemComponent = spawnedItem.GetComponent<Item>();
-            if (itemComponent != null)
+            if (selectedLoot.itemPrefab != null)
             {
-                itemComponent.Durability = durability;
-            }
-            
-            // Network Spawn
-            NetworkObject netObj = spawnedItem.GetComponent<NetworkObject>();
-            if (netObj != null)
-            {
-                netObj.Spawn();
+                // 2. Calculate Durability
+                int durability = WeightedRandomUtility.CalculateDurability(selectedLoot);
+                float weightKg = WeightedRandomUtility.CalculateWeight(selectedLoot);
+                
+                // 3. Spawn Loot
+                Vector3 targetPos = spawnPoint != null ? spawnPoint.position : transform.position + Vector3.up;
+                GameObject spawnedItem = Instantiate(selectedLoot.itemPrefab, targetPos, Quaternion.identity);
+                
+                // Assign durability if the item component exists
+                Item itemComponent = spawnedItem.GetComponent<Item>();
+                if (itemComponent != null)
+                {
+                    itemComponent.Durability = durability;
+                    itemComponent.WeightKg = weightKg;
+                }
+                
+                // Network Spawn
+                NetworkObject netObj = spawnedItem.GetComponent<NetworkObject>();
+                if (netObj != null)
+                {
+                    netObj.Spawn();
+                }
             }
         }
         
@@ -66,8 +80,11 @@ public class InteractableLootBox : AInteractable
         PlayOpenFXClientRpc();
         
         // 5. Despawn Box
-        // We delay slightly to allow FX to trigger if needed, or rely on ClientRpc being sent first
-        GetComponent<NetworkObject>().Despawn(true);
+        if (TryGetComponent<NetworkObject>(out var networkObject))
+        {
+            networkObject.Despawn(false);
+        }
+        gameObject.SetActive(false);
     }
 
     [ClientRpc]
@@ -76,7 +93,7 @@ public class InteractableLootBox : AInteractable
         // One-shot visuals and audio
         if (openParticles != null)
         {
-            // Instantiate at location since the box will be destroyed
+            // Instantiate at location since the box will be deactivated
             Instantiate(openParticles, transform.position, transform.rotation);
         }
         
@@ -84,10 +101,8 @@ public class InteractableLootBox : AInteractable
         {
             AudioSource.PlayClipAtPoint(openSound, transform.position);
         }
-    }
 
-    public override bool CanInteract()
-    {
-        return !_isOpened;
+        // Hide the box on clients
+        gameObject.SetActive(false);
     }
 }

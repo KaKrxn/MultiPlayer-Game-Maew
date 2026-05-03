@@ -24,10 +24,13 @@ namespace Blocks.Gameplay.Core
         /// </summary>
         public int Priority => 0;
 
+        [Tooltip("The stamina cost per second while sprinting.")]
+        [SerializeField] private float sprintStaminaCost = 3f;
+
         /// <summary>
         /// Gets the stamina cost per second while sprinting.
         /// </summary>
-        public float StaminaCost => 3f;
+        public float StaminaCost => sprintStaminaCost;
 
         [Header("Air Control")]
         [Tooltip("How much influence input has in the air. 0 = no control, 1 = full control.")]
