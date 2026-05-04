@@ -3074,7 +3074,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LobbyManager
   roomSelectSceneName: RoomSelect
-  gameSceneName: '[Dew] Test Scene'
+  gameSceneName: '[Dew] Test Scene 2'
   roomNameText: {fileID: 1866108152}
   roomCodeText: {fileID: 1903122944}
   roomStateText: {fileID: 1463318473}

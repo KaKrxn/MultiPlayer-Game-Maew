@@ -210,6 +210,13 @@ public class LobbyManager : MonoBehaviour
             bool isLocked = lockRoomToggle != null && lockRoomToggle.isOn;
             RoomRuntimeState.StartGame(isLocked);
 
+            if (SessionFlowContext.IsHost && session != null)
+            {
+                var hostSession = session.AsHost();
+                hostSession.SetProperty("GameState", new SessionProperty("InGame"));
+                await hostSession.SavePropertiesAsync();
+            }
+
             Unity.Netcode.NetworkManager.Singleton.SceneManager.LoadScene(
                 gameSceneName,
                 UnityEngine.SceneManagement.LoadSceneMode.Single);

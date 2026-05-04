@@ -67,5 +67,8 @@
         "*.sln": "*.csproj",
         "*.slnx": "*.csproj"
     },
-    "dotnet.defaultSolution": "MultiPlayer-Game-Maew.slnx"
+    "dotnet.defaultSolution": "MultiPlayer-Game-Maew.slnx",
+    "dotrush.roslyn.projectOrSolutionFiles": [
+        "z:\\.Project Unity\\Multiplayer\\MultiPlayer-Game-Maew\\MultiPlayer-Game-Maew.slnx"
+    ]
 }

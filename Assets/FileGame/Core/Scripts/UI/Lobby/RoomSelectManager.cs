@@ -282,7 +282,12 @@ public class RoomSelectManager : MonoBehaviour
             {
                 Name = roomName,
                 MaxPlayers = maxPlayersPerRoom,
-                IsLocked = isLocked
+                IsLocked = isLocked,
+                SessionProperties = new Dictionary<string, SessionProperty>
+                {
+                    { "GameState", new SessionProperty("Lobby") },
+                    { "HostIP", new SessionProperty(NetworkGameBootstrap.GetLocalIPAddress()) }
+                }
             };
 
             ISession session = await MultiplayerService.Instance.CreateSessionAsync(sessionOptions);
@@ -305,7 +310,14 @@ public class RoomSelectManager : MonoBehaviour
                 return;
             }
 
-            SceneManager.LoadScene(lobbySceneName);
+            if (Unity.Netcode.NetworkManager.Singleton != null && Unity.Netcode.NetworkManager.Singleton.SceneManager != null)
+            {
+                Unity.Netcode.NetworkManager.Singleton.SceneManager.LoadScene(lobbySceneName, UnityEngine.SceneManagement.LoadSceneMode.Single);
+            }
+            else
+            {
+                SceneManager.LoadScene(lobbySceneName);
+            }
         }
         catch (Exception ex)
         {
@@ -454,9 +466,17 @@ public class RoomSelectManager : MonoBehaviour
             return;
         }
 
+        string gameState = "Lobby";
+        if (session.Properties != null && session.Properties.TryGetValue("GameState", out var gsProp))
+            gameState = gsProp.Value;
+
+        string hostIP = "127.0.0.1";
+        if (session.Properties != null && session.Properties.TryGetValue("HostIP", out var ipProp))
+            hostIP = ipProp.Value;
+
         bool started = isHost
             ? NetworkGameBootstrap.Instance.StartHostLocal()
-            : NetworkGameBootstrap.Instance.StartClientLocal();
+            : NetworkGameBootstrap.Instance.StartClientLocal(hostIP);
 
         if (!started)
         {
@@ -464,7 +484,19 @@ public class RoomSelectManager : MonoBehaviour
             return;
         }
 
-        SceneManager.LoadScene(lobbySceneName);
+        if (isHost)
+        {
+            if (Unity.Netcode.NetworkManager.Singleton != null && Unity.Netcode.NetworkManager.Singleton.SceneManager != null)
+            {
+                Unity.Netcode.NetworkManager.Singleton.SceneManager.LoadScene(lobbySceneName, UnityEngine.SceneManagement.LoadSceneMode.Single);
+            }
+            else
+            {
+                SceneManager.LoadScene(lobbySceneName);
+            }
+        }
+        // If it's a client, NetworkManager will automatically sync the scene to match the Host (Lobby or Game).
+        // So we don't need to call SceneManager.LoadScene manually here.
     }
 
     private void CreateRoomListItem(RoomListItemData data)

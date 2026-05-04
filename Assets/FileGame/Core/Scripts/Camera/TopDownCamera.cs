@@ -39,16 +39,12 @@ public class TopDownCamera : MonoBehaviour
 
     private void FindLocalPlayer()
     {
-        // สำหรับ Unity Netcode: หา Object ที่มี NetworkObject และเป็น Owner
-        var players = GameObject.FindGameObjectsWithTag("Player");
-        foreach (var p in players)
+        if (Unity.Netcode.NetworkManager.Singleton != null && 
+            Unity.Netcode.NetworkManager.Singleton.IsConnectedClient &&
+            Unity.Netcode.NetworkManager.Singleton.LocalClient != null &&
+            Unity.Netcode.NetworkManager.Singleton.LocalClient.PlayerObject != null)
         {
-            var netObj = p.GetComponent<Unity.Netcode.NetworkObject>();
-            if (netObj != null && netObj.IsOwner)
-            {
-                target = p.transform;
-                break;
-            }
+            target = Unity.Netcode.NetworkManager.Singleton.LocalClient.PlayerObject.transform;
         }
     }
 }
