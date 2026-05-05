@@ -85,6 +85,7 @@ public class LobbyManager : MonoBehaviour
         session.RemovedFromSession += OnRemovedFromSession;
         session.Deleted += OnSessionDeleted;
         session.SessionHostChanged += OnSessionHostChanged;
+        session.PlayerPropertiesChanged += OnPlayerPropertiesChanged;
     }
 
     private void UnsubscribeEvents()
@@ -96,6 +97,7 @@ public class LobbyManager : MonoBehaviour
         session.RemovedFromSession -= OnRemovedFromSession;
         session.Deleted -= OnSessionDeleted;
         session.SessionHostChanged -= OnSessionHostChanged;
+        session.PlayerPropertiesChanged -= OnPlayerPropertiesChanged;
     }
 
     private void OnSessionChanged()
@@ -106,6 +108,7 @@ public class LobbyManager : MonoBehaviour
 
     private void OnPlayerJoined(string playerId) { RefreshUI(); SetStatus($"Player joined: {ShortId(playerId)}"); }
     private void OnPlayerHasLeft(string playerId) { RefreshUI(); SetStatus($"Player left: {ShortId(playerId)}"); }
+    private void OnPlayerPropertiesChanged() { RefreshUI(); }
 
     private void OnRemovedFromSession()
     {
@@ -298,6 +301,14 @@ public class LobbyManager : MonoBehaviour
     private static string ReadPlayerName(object p)
     {
         if (p == null) return "Unknown Player";
+
+        if (p is IReadOnlyPlayer readOnlyPlayer)
+        {
+            string sessionName = PlayerNameRegistry.ReadSessionPlayerName(readOnlyPlayer);
+            if (!string.IsNullOrWhiteSpace(sessionName))
+                return sessionName;
+        }
+
         foreach (string n in new[] { "Name", "DisplayName" })
         {
             string v = p.GetType().GetProperty(n)?.GetValue(p)?.ToString();

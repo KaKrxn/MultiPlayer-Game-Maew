@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Unity.Netcode;
+using Unity.Services.Multiplayer;
 using UnityEngine;
 
 /// <summary>
@@ -20,6 +21,9 @@ public class PlayerSpawnManager : NetworkBehaviour
 
     [Tooltip("Spawn point used for late joiners. If empty, the manager searches for a train spawn fallback.")]
     public Transform trainSpawnPoint;
+
+    [Header("Player Names")]
+    [SerializeField] private PlayerNameRegistry playerNameRegistry;
 
     private readonly HashSet<ulong> m_Spawned = new HashSet<ulong>();
     private readonly HashSet<ulong> m_ReadyClients = new HashSet<ulong>();
@@ -56,6 +60,9 @@ public class PlayerSpawnManager : NetworkBehaviour
                 Debug.LogError("[PSM] playerPrefab is not assigned in the Inspector.");
                 return;
             }
+
+            if (playerNameRegistry == null)
+                playerNameRegistry = FindObjectOfType<PlayerNameRegistry>();
 
             FindStartSpawnPoints();
             BuildLobbySpawnOrder();
@@ -300,7 +307,18 @@ public class PlayerSpawnManager : NetworkBehaviour
 
         if (networkObject != null)
         {
+            if (playerNameRegistry == null)
+                playerNameRegistry = FindObjectOfType<PlayerNameRegistry>();
+
+            playerNameRegistry?.EnsureNameForClient(clientId);
+
             networkObject.SpawnAsPlayerObject(clientId, true);
+            playerNameRegistry?.RegisterPlayerObject(clientId, networkObject);
+
+            NameplateController[] nameplates = player.GetComponentsInChildren<NameplateController>(true);
+            for (int i = 0; i < nameplates.Length; i++)
+                nameplates[i].Initialize(clientId, networkObject);
+
             Debug.Log($"[PSM-Server] SpawnAsPlayerObject succeeded | ClientId={clientId} | NetworkObjectId={networkObject.NetworkObjectId} | Owner={networkObject.OwnerClientId} | IsSpawned={networkObject.IsSpawned} | finalPos={player.transform.position} | expectedObservers=[{string.Join(", ", NetworkManager.ConnectedClientsIds)}]");
         }
         else
@@ -323,12 +341,37 @@ public class PlayerSpawnManager : NetworkBehaviour
             return;
         }
 
+        if (playerNameRegistry == null)
+            playerNameRegistry = FindObjectOfType<PlayerNameRegistry>();
+
+        SeedLobbyNamesFromSession();
+
         // LSM has already confirmed all clients are ready; mark them here so
         // TrySpawnLobbyClientsWhenReady sees a full ready set.
         foreach (ulong clientId in m_LobbySpawnOrder)
+        {
             m_ReadyClients.Add(clientId);
+            playerNameRegistry?.EnsureNameForClient(clientId);
+        }
 
         TrySpawnLobbyClientsWhenReady();
+    }
+
+    private void SeedLobbyNamesFromSession()
+    {
+        if (!IsServer || playerNameRegistry == null)
+            return;
+
+        ISession session = SessionFlowContext.CurrentSession;
+        if (session?.Players == null)
+            return;
+
+        int count = Mathf.Min(m_LobbySpawnOrder.Count, session.Players.Count);
+        for (int i = 0; i < count; i++)
+        {
+            string playerName = PlayerNameRegistry.ReadSessionPlayerName(session.Players[i]);
+            playerNameRegistry.EnsureNameForClient(m_LobbySpawnOrder[i], playerName);
+        }
     }
 
     /// <summary>
@@ -344,6 +387,10 @@ public class PlayerSpawnManager : NetworkBehaviour
             return;
         }
         Debug.Log($"[PSM-Server] SpawnLateJoiner {clientId} → Train");
+        if (playerNameRegistry == null)
+            playerNameRegistry = FindObjectOfType<PlayerNameRegistry>();
+
+        playerNameRegistry?.EnsureNameForClient(clientId);
         m_Spawned.Add(clientId);
         SpawnPlayerAtTrain(clientId);
     }

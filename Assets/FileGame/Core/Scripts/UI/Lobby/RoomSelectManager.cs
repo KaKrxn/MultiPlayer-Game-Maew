@@ -283,6 +283,7 @@ public class RoomSelectManager : MonoBehaviour
                 Name = roomName,
                 MaxPlayers = maxPlayersPerRoom,
                 IsLocked = isLocked,
+                PlayerProperties = CreateLocalPlayerProperties(),
                 SessionProperties = new Dictionary<string, SessionProperty>
                 {
                     { "GameState", new SessionProperty("Lobby") },
@@ -291,7 +292,7 @@ public class RoomSelectManager : MonoBehaviour
             };
 
             ISession session = await MultiplayerService.Instance.CreateSessionAsync(sessionOptions);
-
+            await SaveLocalPlayerNameAsync(session);
             
             bool isHost = SessionRoleUtility.IsLocalPlayerHost(session);
             SessionFlowContext.SetCurrentSession(session, isHost);
@@ -355,8 +356,12 @@ public class RoomSelectManager : MonoBehaviour
 
             ISession session = await MultiplayerService.Instance.JoinSessionByCodeAsync(
                 code,
-                new JoinSessionOptions());
+                new JoinSessionOptions
+                {
+                    PlayerProperties = CreateLocalPlayerProperties()
+                });
 
+            await SaveLocalPlayerNameAsync(session);
             RouteAfterJoin(session);
         }
         catch (Exception ex)
@@ -387,8 +392,12 @@ public class RoomSelectManager : MonoBehaviour
 
             ISession session = await MultiplayerService.Instance.JoinSessionByIdAsync(
                 sessionId,
-                new JoinSessionOptions());
+                new JoinSessionOptions
+                {
+                    PlayerProperties = CreateLocalPlayerProperties()
+                });
 
+            await SaveLocalPlayerNameAsync(session);
             RouteAfterJoin(session);
         }
         catch (Exception ex)
@@ -427,13 +436,15 @@ public class RoomSelectManager : MonoBehaviour
             {
                 Name = $"Room_{UnityEngine.Random.Range(1000, 9999)}",
                 MaxPlayers = maxPlayersPerRoom,
-                IsLocked = false
+                IsLocked = false,
+                PlayerProperties = CreateLocalPlayerProperties()
             };
 
             ISession session = await MultiplayerService.Instance.MatchmakeSessionAsync(
                 quickJoinOptions,
                 createOptions);
 
+            await SaveLocalPlayerNameAsync(session);
             RouteAfterJoin(session);
         }
         catch (Exception ex)
@@ -533,6 +544,30 @@ public class RoomSelectManager : MonoBehaviour
             statusText.text = message;
 
         Debug.Log(message);
+    }
+
+    private static Dictionary<string, PlayerProperty> CreateLocalPlayerProperties()
+    {
+        string playerName = PlayerNameRegistry.GetSavedLocalPlayerName();
+        return new Dictionary<string, PlayerProperty>
+        {
+            {
+                PlayerNameRegistry.PlayerNamePropertyKey,
+                new PlayerProperty(playerName, VisibilityPropertyOptions.Member)
+            }
+        };
+    }
+
+    private static async Task SaveLocalPlayerNameAsync(ISession session)
+    {
+        if (session?.CurrentPlayer == null)
+            return;
+
+        session.CurrentPlayer.SetProperty(
+            PlayerNameRegistry.PlayerNamePropertyKey,
+            new PlayerProperty(PlayerNameRegistry.GetSavedLocalPlayerName(), VisibilityPropertyOptions.Member));
+
+        await session.SaveCurrentPlayerDataAsync();
     }
 
     private bool AreMultiplayerServicesInitialized()
