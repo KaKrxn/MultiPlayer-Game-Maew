@@ -103,8 +103,14 @@ namespace Blocks.Gameplay.Shooter
         /// </summary>
         public void OnPlayerSpawn()
         {
-            if (m_PlayerManager.IsOwner)
+            if (m_PlayerManager != null && m_PlayerManager.IsOwner)
             {
+                if (onAimToggled == null)
+                {
+                    Debug.LogWarning("[ShooterAddon] onAimToggled is not assigned. Aim toggle input will be disabled.", this);
+                    return;
+                }
+
                 onAimToggled.RegisterListener(HandleAimToggled);
             }
         }
@@ -115,7 +121,7 @@ namespace Blocks.Gameplay.Shooter
         /// </summary>
         public void OnPlayerDespawn()
         {
-            if (m_PlayerManager != null && m_PlayerManager.IsOwner)
+            if (m_PlayerManager != null && m_PlayerManager.IsOwner && onAimToggled != null)
             {
                 onAimToggled.UnregisterListener(HandleAimToggled);
             }
