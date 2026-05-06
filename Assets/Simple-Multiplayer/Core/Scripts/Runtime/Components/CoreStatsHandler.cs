@@ -60,8 +60,9 @@ namespace Blocks.Gameplay.Core
                 return;
             }
 
-            // Owner can write, everyone can read the stat values
-            m_RuntimeStats = new NetworkList<RuntimeStat>(default, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+            // Server owns stat initialization and replication so every client
+            // receives the same initial list with the spawned player object.
+            m_RuntimeStats = new NetworkList<RuntimeStat>(default, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
             // Populate the definitions dictionary from the config for fast lookups
             foreach (var def in statsConfig.stats)
@@ -72,27 +73,9 @@ namespace Blocks.Gameplay.Core
 
         public override void OnNetworkSpawn()
         {
-            if (IsOwner)
+            if (IsServer)
             {
-                // The owner is responsible for initializing the stats for their character
-                // This ensures that stats are set only once and then synchronized to other clients
-                if (m_RuntimeStats.Count == 0)
-                {
-                    if (statsConfig.stats == null || statsConfig.stats.Count == 0)
-                    {
-                        Debug.LogWarning($"[CoreStatsHandler] No stats defined in StatsConfig on {gameObject.name}", this);
-                        return;
-                    }
-
-                    foreach (var def in statsConfig.stats)
-                    {
-                        m_RuntimeStats.Add(new RuntimeStat
-                        {
-                            StatHash = Animator.StringToHash(def.statName),
-                            CurrentValue = def.startingValue
-                        });
-                    }
-                }
+                InitializeStatsIfNeeded();
             }
 
             // Subscribe to changes in the stat list to update UI and game logic
@@ -116,8 +99,8 @@ namespace Blocks.Gameplay.Core
 
         private void Update()
         {
-            // Regeneration logic is only handled by the owner
-            if (!IsOwner || !IsAlive) return;
+            // Regeneration logic is handled by the server, which owns stat writes.
+            if (!IsServer || !IsAlive) return;
 
             HandleRegeneration();
         }
@@ -127,7 +110,7 @@ namespace Blocks.Gameplay.Core
         #region Public Methods
 
         /// <summary>
-        /// Modifies a stat by a given amount. Only the owner can call this.
+        /// Modifies a stat by a given amount. Only the server can write stat values.
         /// </summary>
         /// <param name="statHash">The hash of the stat to modify (use StatKeys).</param>
         /// <param name="amount">The amount to add or subtract.</param>
@@ -135,7 +118,7 @@ namespace Blocks.Gameplay.Core
         /// <param name="sourceType">What type of modification this is.</param>
         public void ModifyStat(int statHash, float amount, ulong sourcePlayerId = 0, ModificationSource sourceType = ModificationSource.Direct)
         {
-            if (!IsOwner) return;
+            if (!IsServer) return;
 
             int statIndex = FindStatIndex(statHash);
 
@@ -158,7 +141,7 @@ namespace Blocks.Gameplay.Core
         /// <returns>True if the stat had enough value to consume, false otherwise.</returns>
         public bool TryConsumeStat(int statHash, float amount, ulong sourcePlayerId = 0)
         {
-            if (!IsOwner) return false;
+            if (!IsServer) return false;
 
             int statIndex = FindStatIndex(statHash);
 
@@ -249,6 +232,27 @@ namespace Blocks.Gameplay.Core
         #endregion
 
         #region Private Methods
+
+        private void InitializeStatsIfNeeded()
+        {
+            if (m_RuntimeStats.Count > 0)
+                return;
+
+            if (statsConfig.stats == null || statsConfig.stats.Count == 0)
+            {
+                Debug.LogWarning($"[CoreStatsHandler] No stats defined in StatsConfig on {gameObject.name}", this);
+                return;
+            }
+
+            foreach (var def in statsConfig.stats)
+            {
+                m_RuntimeStats.Add(new RuntimeStat
+                {
+                    StatHash = Animator.StringToHash(def.statName),
+                    CurrentValue = def.startingValue
+                });
+            }
+        }
 
         /// <summary>
         /// Called when the NetworkList of stats changes. This can be an add, remove, or value change.

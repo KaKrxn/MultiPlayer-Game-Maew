@@ -228,6 +228,12 @@ namespace Blocks.Gameplay.Core
 
         #region Unity Methods
 
+        // CharacterController movement runs on the owning client, so this transform
+        // must be owner-authoritative. Without this, the server's stale position
+        // (which never moves because Update() is owner-only) would continuously
+        // snap the player back to the spawn point via NetworkTransform replication.
+        protected override bool OnIsServerAuthoritative() => false;
+
         protected override void Awake()
         {
             base.Awake();

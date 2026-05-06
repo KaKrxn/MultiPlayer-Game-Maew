@@ -706,6 +706,58 @@ public class InventoryManager : MonoBehaviour
         }
     }
 
+    public bool TryConsumeJacketDurability(int dmgAmount)
+    {
+        bool found = false;
+        for (int i = 0; i < _inventoryData.Length; i++)
+        {
+            var data = _inventoryData[i];
+            if (data.inventoryItem == null || !data.itemInstance.IsValid) continue;
+            if (data.itemInstance.itemData.itemType != ItemType.Clothing) continue;
+
+            found = true;
+            int newDur = Mathf.Clamp(data.itemInstance.durabilityPercent - dmgAmount, 0, 100);
+
+            var updated = data.itemInstance;
+            updated.durabilityPercent = newDur;
+            _inventoryData[i] = new InventoryItemData
+            {
+                itemInstance = updated,
+                inventoryItem = data.inventoryItem
+            };
+            data.inventoryItem.SetInstanceData(updated);
+
+            if (newDur <= 0)
+            {
+                DeductItem(data.inventoryItem);
+                continue;
+            }
+
+            break;
+        }
+
+        return found;
+    }
+
+    public void RefreshItemDurabilityUI(int slotIndex)
+    {
+        if (slotIndex < 0 || slotIndex >= _inventoryData.Length) return;
+        _inventoryData[slotIndex].inventoryItem?.RefreshStatDisplay();
+    }
+
+    public bool HasJacketInInventory()
+    {
+        for (int i = 0; i < _inventoryData.Length; i++)
+        {
+            var d = _inventoryData[i];
+            if (d.inventoryItem == null || !d.itemInstance.IsValid) continue;
+            if (d.itemInstance.itemData.itemType == ItemType.Clothing
+                && d.itemInstance.durabilityPercent > 0) return true;
+        }
+
+        return false;
+    }
+
     [System.Serializable]
     public struct InventoryItemData
     {

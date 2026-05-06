@@ -7,7 +7,6 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using Unity.Netcode;
-using UnityEngine.SceneManagement;
 
 public class LobbyManager : MonoBehaviour
 {
@@ -44,14 +43,9 @@ public class LobbyManager : MonoBehaviour
 
     private void Awake()
     {
-        if (startButton != null)
-            startButton.onClick.AddListener(OnClickStartGame);
-
-        if (leaveButton != null)
-            leaveButton.onClick.AddListener(OnClickLeaveRoom);
-
-        if (lockRoomToggle != null)
-            lockRoomToggle.onValueChanged.AddListener(OnLockToggleChanged);
+        if (startButton != null) startButton.onClick.AddListener(OnClickStartGame);
+        if (leaveButton != null) leaveButton.onClick.AddListener(OnClickLeaveRoom);
+        if (lockRoomToggle != null) lockRoomToggle.onValueChanged.AddListener(OnLockToggleChanged);
     }
 
     private void Start()
@@ -77,41 +71,33 @@ public class LobbyManager : MonoBehaviour
     private void OnDestroy()
     {
         UnsubscribeEvents();
-
-        if (startButton != null)
-            startButton.onClick.RemoveListener(OnClickStartGame);
-
-        if (leaveButton != null)
-            leaveButton.onClick.RemoveListener(OnClickLeaveRoom);
-
-        if (lockRoomToggle != null)
-            lockRoomToggle.onValueChanged.RemoveListener(OnLockToggleChanged);
+        if (startButton != null) startButton.onClick.RemoveListener(OnClickStartGame);
+        if (leaveButton != null) leaveButton.onClick.RemoveListener(OnClickLeaveRoom);
+        if (lockRoomToggle != null) lockRoomToggle.onValueChanged.RemoveListener(OnLockToggleChanged);
     }
 
     private void SubscribeEvents()
     {
-        if (session == null)
-            return;
-
+        if (session == null) return;
         session.Changed += OnSessionChanged;
         session.PlayerJoined += OnPlayerJoined;
         session.PlayerHasLeft += OnPlayerHasLeft;
         session.RemovedFromSession += OnRemovedFromSession;
         session.Deleted += OnSessionDeleted;
         session.SessionHostChanged += OnSessionHostChanged;
+        session.PlayerPropertiesChanged += OnPlayerPropertiesChanged;
     }
 
     private void UnsubscribeEvents()
     {
-        if (session == null)
-            return;
-
+        if (session == null) return;
         session.Changed -= OnSessionChanged;
         session.PlayerJoined -= OnPlayerJoined;
         session.PlayerHasLeft -= OnPlayerHasLeft;
         session.RemovedFromSession -= OnRemovedFromSession;
         session.Deleted -= OnSessionDeleted;
         session.SessionHostChanged -= OnSessionHostChanged;
+        session.PlayerPropertiesChanged -= OnPlayerPropertiesChanged;
     }
 
     private void OnSessionChanged()
@@ -120,17 +106,9 @@ public class LobbyManager : MonoBehaviour
         RefreshUI();
     }
 
-    private void OnPlayerJoined(string playerId)
-    {
-        RefreshUI();
-        SetStatus($"Player joined: {ShortId(playerId)}");
-    }
-
-    private void OnPlayerHasLeft(string playerId)
-    {
-        RefreshUI();
-        SetStatus($"Player left: {ShortId(playerId)}");
-    }
+    private void OnPlayerJoined(string playerId) { RefreshUI(); SetStatus($"Player joined: {ShortId(playerId)}"); }
+    private void OnPlayerHasLeft(string playerId) { RefreshUI(); SetStatus($"Player left: {ShortId(playerId)}"); }
+    private void OnPlayerPropertiesChanged() { RefreshUI(); }
 
     private void OnRemovedFromSession()
     {
@@ -150,54 +128,25 @@ public class LobbyManager : MonoBehaviour
     {
         bool isLocalHost = SessionRoleUtility.IsLocalPlayerHost(session);
         SessionFlowContext.SetCurrentSession(session, isLocalHost);
-
         RefreshUI();
         SetStatus(isLocalHost ? "You are now the host." : "Host changed.");
     }
 
-    //private void OnClickStartGame()
-    //{
-    //    if (!SessionFlowContext.IsHost || isBusy || isSceneChanging)
-    //        return;
-
-    //    bool isLocked = lockRoomToggle != null && lockRoomToggle.isOn;
-
-    //    RoomRuntimeState.StartGame(isLocked);
-
-    //    isSceneChanging = true;
-    //    SceneManager.LoadScene(gameSceneName);
-    //}
-
-    private void OnClickStartGame()
-    {
-        _ = StartGameForAllAsync();
-    }
+    private void OnClickStartGame() => _ = StartGameForAllAsync();
 
     private async Task StartGameForAllAsync()
     {
-        if (!SessionFlowContext.IsHost || isBusy || isSceneChanging)
-            return;
+        if (!SessionFlowContext.IsHost || isBusy || isSceneChanging) return;
 
-        if (NetworkGameBootstrap.Instance == null)
-        {
-            SetStatus("NetworkGameBootstrap not found.");
-            return;
-        }
-
-        if (!NetworkGameBootstrap.Instance.IsNetworkRunning())
-        {
-            SetStatus("NetworkManager is not running.");
-            return;
-        }
-
+        if (NetworkGameBootstrap.Instance == null) { SetStatus("NetworkGameBootstrap not found."); return; }
+        if (!NetworkGameBootstrap.Instance.IsNetworkRunning()) { SetStatus("NetworkManager is not running."); return; }
         if (!NetworkGameBootstrap.Instance.IsHost() && !NetworkGameBootstrap.Instance.IsServer())
         {
             SetStatus("Only the host can start the game.");
             return;
         }
 
-        if (Unity.Netcode.NetworkManager.Singleton == null ||
-            Unity.Netcode.NetworkManager.Singleton.SceneManager == null)
+        if (NetworkManager.Singleton?.SceneManager == null)
         {
             SetStatus("Network scene management is not available.");
             return;
@@ -210,7 +159,23 @@ public class LobbyManager : MonoBehaviour
             bool isLocked = lockRoomToggle != null && lockRoomToggle.isOn;
             RoomRuntimeState.StartGame(isLocked);
 
-            Unity.Netcode.NetworkManager.Singleton.SceneManager.LoadScene(
+            // อัปเดต Session Property
+            if (SessionFlowContext.IsHost && session != null)
+            {
+                var hostSession = session.AsHost();
+                hostSession.SetProperty("GameState", new SessionProperty("InGame"));
+                await hostSession.SavePropertiesAsync();
+                Debug.Log("[LobbyManager] ✅ Session GameState → InGame");
+            }
+
+            // Capture the exact clients that are in the lobby now. The server will
+            // use this snapshot after the Game scene loads, so we do not depend on
+            // CustomMessaging timing.
+            Debug.Log("[LobbyManager] Capturing lobby clients before LoadScene...");
+            PlayerSpawnManager.CaptureLobbyClients(NetworkManager.Singleton);
+
+            Debug.Log($"[LobbyManager] 🚀 LoadScene → '{gameSceneName}'");
+            NetworkManager.Singleton.SceneManager.LoadScene(
                 gameSceneName,
                 UnityEngine.SceneManagement.LoadSceneMode.Single);
 
@@ -227,54 +192,34 @@ public class LobbyManager : MonoBehaviour
         }
     }
 
-    private void OnClickLeaveRoom()
-    {
-        _ = LeaveRoomAsync();
-    }
+    private void OnClickLeaveRoom() => _ = LeaveRoomAsync();
 
     private void OnLockToggleChanged(bool isLocked)
     {
         if (!SessionFlowContext.IsHost || isBusy)
         {
-            if (lockRoomToggle != null)
-                lockRoomToggle.SetIsOnWithoutNotify(RoomRuntimeState.IsLocked);
+            if (lockRoomToggle != null) lockRoomToggle.SetIsOnWithoutNotify(RoomRuntimeState.IsLocked);
             return;
         }
-
         RoomRuntimeState.SetLocked(isLocked);
         RefreshUI();
     }
 
     private async Task LeaveRoomAsync()
     {
-        if (session == null || isBusy)
-            return;
-
+        if (session == null || isBusy) return;
         try
         {
             SetBusy(true, "Leaving room...");
-
             bool handled = await TryInvokeTaskMethodAsync(session, "LeaveAsync");
-
             if (!handled && SessionFlowContext.IsHost)
-            {
-                IHostSession hostSession = SafeAsHost(session);
-                handled = await TryInvokeTaskMethodAsync(hostSession, "DeleteAsync");
-            }
-
-            if (!handled)
-                Debug.LogWarning("LeaveAsync/DeleteAsync not found. Returning locally.");
+                handled = await TryInvokeTaskMethodAsync(SafeAsHost(session), "DeleteAsync");
+            if (!handled) Debug.LogWarning("LeaveAsync/DeleteAsync not found.");
         }
-        catch (Exception ex)
-        {
-            SetStatus($"Failed to leave room cleanly: {ex.Message}");
-            Debug.LogException(ex);
-        }
+        catch (Exception ex) { SetStatus($"Failed to leave room cleanly: {ex.Message}"); Debug.LogException(ex); }
         finally
         {
-            if (NetworkGameBootstrap.Instance != null)
-                NetworkGameBootstrap.Instance.Shutdown();
-
+            NetworkGameBootstrap.Instance?.Shutdown();
             SessionFlowContext.Clear();
             SceneManager.LoadScene(roomSelectSceneName);
         }
@@ -282,28 +227,18 @@ public class LobbyManager : MonoBehaviour
 
     private void RefreshUI()
     {
-        if (session == null)
-            return;
+        if (session == null) return;
 
-        string roomName = !string.IsNullOrWhiteSpace(RoomRuntimeState.RoomName)
-            ? RoomRuntimeState.RoomName
+        string roomName = !string.IsNullOrWhiteSpace(RoomRuntimeState.RoomName) ? RoomRuntimeState.RoomName
             : (string.IsNullOrWhiteSpace(session.Name) ? "Unnamed Room" : session.Name);
 
-        string roomCode = !string.IsNullOrWhiteSpace(RoomRuntimeState.JoinCode)
-            ? RoomRuntimeState.JoinCode
+        string roomCode = !string.IsNullOrWhiteSpace(RoomRuntimeState.JoinCode) ? RoomRuntimeState.JoinCode
             : ReadJoinCode(session);
 
-        if (roomNameText != null)
-            roomNameText.text = roomName;
-
-        if (roomCodeText != null)
-            roomCodeText.text = roomCode;
-
-        if (roomStateText != null)
-            roomStateText.text = RoomRuntimeState.CurrentState == RoomFlowState.InGame ? "InGame" : "Lobby";
-
-        if (lockStatusText != null)
-            lockStatusText.text = RoomRuntimeState.IsLocked ? "Locked" : "Open";
+        if (roomNameText != null) roomNameText.text = roomName;
+        if (roomCodeText != null) roomCodeText.text = roomCode;
+        if (roomStateText != null) roomStateText.text = RoomRuntimeState.CurrentState == RoomFlowState.InGame ? "InGame" : "Lobby";
+        if (lockStatusText != null) lockStatusText.text = RoomRuntimeState.IsLocked ? "Locked" : "Open";
 
         if (lockRoomToggle != null)
         {
@@ -317,19 +252,16 @@ public class LobbyManager : MonoBehaviour
 
     private void RefreshPlayerSlots()
     {
-        if (playerSlots == null || playerSlots.Length == 0)
-            return;
+        if (playerSlots == null || playerSlots.Length == 0) return;
 
         string hostPlayerId = ReadHostPlayerId(session);
         string localPlayerId = ReadLocalPlayerId(session);
-
-        int playerCount = session != null && session.Players != null ? session.Players.Count : 0;
+        int playerCount = session?.Players != null ? session.Players.Count : 0;
 
         for (int i = 0; i < playerSlots.Length; i++)
         {
-            PlayerSlotUI slot = playerSlots[i];
-            if (slot == null)
-                continue;
+            var slot = playerSlots[i];
+            if (slot == null) continue;
 
             if (i < playerCount)
             {
@@ -337,194 +269,105 @@ public class LobbyManager : MonoBehaviour
                 string playerId = ReadPlayerId(player);
                 string playerName = ReadPlayerName(player);
 
-                if (slot.playerNameText != null)
-                    slot.playerNameText.text = playerName;
-
-                if (slot.hostTagObject != null)
-                    slot.hostTagObject.SetActive(!string.IsNullOrEmpty(hostPlayerId) && playerId == hostPlayerId);
-
-                if (slot.youTagObject != null)
-                    slot.youTagObject.SetActive(!string.IsNullOrEmpty(localPlayerId) && playerId == localPlayerId);
+                if (slot.playerNameText != null) slot.playerNameText.text = playerName;
+                if (slot.hostTagObject != null) slot.hostTagObject.SetActive(!string.IsNullOrEmpty(hostPlayerId) && playerId == hostPlayerId);
+                if (slot.youTagObject != null) slot.youTagObject.SetActive(!string.IsNullOrEmpty(localPlayerId) && playerId == localPlayerId);
             }
             else
             {
-                if (slot.playerNameText != null)
-                    slot.playerNameText.text = "Waiting...";
-
-                if (slot.hostTagObject != null)
-                    slot.hostTagObject.SetActive(false);
-
-                if (slot.youTagObject != null)
-                    slot.youTagObject.SetActive(false);
+                if (slot.playerNameText != null) slot.playerNameText.text = "Waiting...";
+                if (slot.hostTagObject != null) slot.hostTagObject.SetActive(false);
+                if (slot.youTagObject != null) slot.youTagObject.SetActive(false);
             }
         }
     }
 
     private void UpdateButtons()
     {
-        if (startButton != null)
-            startButton.interactable = SessionFlowContext.IsHost && !isBusy;
-
-        if (leaveButton != null)
-            leaveButton.interactable = !isBusy;
+        if (startButton != null) startButton.interactable = SessionFlowContext.IsHost && !isBusy;
+        if (leaveButton != null) leaveButton.interactable = !isBusy;
     }
 
-    private bool IsLocalPlayerId(string playerId)
+    // ─── Helpers ──────────────────────────────────────────────────
+
+    private static string ReadLocalPlayerId(ISession s) => s?.CurrentPlayer?.Id ?? string.Empty;
+
+    private static string ReadPlayerId(object p)
     {
-        string localId = ReadLocalPlayerId(session);
-        return !string.IsNullOrEmpty(localId) && localId == playerId;
+        if (p == null) return string.Empty;
+        return p.GetType().GetProperty("Id")?.GetValue(p)?.ToString() ?? string.Empty;
     }
 
-    private static string ReadLocalPlayerId(ISession currentSession)
+    private static string ReadPlayerName(object p)
     {
-        if (currentSession == null || currentSession.CurrentPlayer == null)
-            return string.Empty;
+        if (p == null) return "Unknown Player";
 
-        return currentSession.CurrentPlayer.Id;
-    }
-
-    private static string ReadPlayerId(object player)
-    {
-        if (player == null)
-            return string.Empty;
-
-        PropertyInfo idProp = player.GetType().GetProperty("Id");
-        if (idProp == null)
-            return string.Empty;
-
-        object value = idProp.GetValue(player);
-        return value?.ToString() ?? string.Empty;
-    }
-
-    private static string ReadPlayerName(object player)
-    {
-        if (player == null)
-            return "Unknown Player";
-
-        PropertyInfo nameProp = player.GetType().GetProperty("Name");
-        if (nameProp != null)
+        if (p is IReadOnlyPlayer readOnlyPlayer)
         {
-            object value = nameProp.GetValue(player);
-            if (value != null && !string.IsNullOrWhiteSpace(value.ToString()))
-                return value.ToString();
+            string sessionName = PlayerNameRegistry.ReadSessionPlayerName(readOnlyPlayer);
+            if (!string.IsNullOrWhiteSpace(sessionName))
+                return sessionName;
         }
 
-        PropertyInfo displayNameProp = player.GetType().GetProperty("DisplayName");
-        if (displayNameProp != null)
+        foreach (string n in new[] { "Name", "DisplayName" })
         {
-            object value = displayNameProp.GetValue(player);
-            if (value != null && !string.IsNullOrWhiteSpace(value.ToString()))
-                return value.ToString();
+            string v = p.GetType().GetProperty(n)?.GetValue(p)?.ToString();
+            if (!string.IsNullOrWhiteSpace(v)) return v;
         }
-
-        string id = ReadPlayerId(player);
+        string id = ReadPlayerId(p);
         return string.IsNullOrWhiteSpace(id) ? "Unknown Player" : ShortId(id);
     }
 
-    private static string ReadJoinCode(ISession currentSession)
+    private static string ReadJoinCode(ISession s)
     {
-        if (currentSession == null)
-            return "-";
-
-        string[] names = { "Code", "SessionCode", "JoinCode" };
-
-        foreach (string name in names)
+        if (s == null) return "-";
+        foreach (string n in new[] { "Code", "SessionCode", "JoinCode" })
         {
-            PropertyInfo prop = currentSession.GetType().GetProperty(name);
-            if (prop == null)
-                continue;
-
-            object value = prop.GetValue(currentSession);
-            if (value != null && !string.IsNullOrWhiteSpace(value.ToString()))
-                return value.ToString();
+            string v = s.GetType().GetProperty(n)?.GetValue(s)?.ToString();
+            if (!string.IsNullOrWhiteSpace(v)) return v;
         }
-
         return "-";
     }
 
-    private static string ReadHostPlayerId(ISession currentSession)
+    private static string ReadHostPlayerId(ISession s)
     {
-        if (currentSession == null)
-            return string.Empty;
-
-        PropertyInfo hostProp = currentSession.GetType().GetProperty("Host");
-        if (hostProp != null)
-        {
-            object value = hostProp.GetValue(currentSession);
-            if (value != null)
-                return value.ToString();
-        }
-
-        IHostSession hostSession = SafeAsHost(currentSession);
-        if (hostSession == null)
-            return string.Empty;
-
-        PropertyInfo hostSessionHostProp = hostSession.GetType().GetProperty("Host");
-        if (hostSessionHostProp == null)
-            return string.Empty;
-
-        object hostValue = hostSessionHostProp.GetValue(hostSession);
-        return hostValue?.ToString() ?? string.Empty;
+        if (s == null) return string.Empty;
+        string v = s.GetType().GetProperty("Host")?.GetValue(s)?.ToString();
+        if (!string.IsNullOrEmpty(v)) return v;
+        return SafeAsHost(s)?.GetType().GetProperty("Host")?.GetValue(SafeAsHost(s))?.ToString() ?? string.Empty;
     }
 
-    private static IHostSession SafeAsHost(ISession currentSession)
+    private static IHostSession SafeAsHost(ISession s)
     {
-        try
-        {
-            return currentSession?.AsHost();
-        }
-        catch
-        {
-            return null;
-        }
+        try { return s?.AsHost(); } catch { return null; }
     }
 
     private static async Task<bool> TryInvokeTaskMethodAsync(object target, string methodName)
     {
-        if (target == null)
-            return false;
-
-        MethodInfo method = target.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public);
-        if (method == null)
-            return false;
-
-        object result = method.Invoke(target, null);
-
-        if (result is Task task)
-        {
-            await task;
-            return true;
-        }
-
+        if (target == null) return false;
+        var m = target.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public);
+        if (m == null) return false;
+        if (m.Invoke(target, null) is Task t) { await t; return true; }
         return false;
     }
 
     private void SetBusy(bool value, string message = null)
     {
         isBusy = value;
-
-        if (!string.IsNullOrEmpty(message))
-            SetStatus(message);
-
+        if (!string.IsNullOrEmpty(message)) SetStatus(message);
         UpdateButtons();
-
-        if (lockRoomToggle != null)
-            lockRoomToggle.interactable = SessionFlowContext.IsHost && !isBusy;
+        if (lockRoomToggle != null) lockRoomToggle.interactable = SessionFlowContext.IsHost && !isBusy;
     }
 
     private void SetStatus(string message)
     {
-        if (statusText != null)
-            statusText.text = message;
-
+        if (statusText != null) statusText.text = message;
         Debug.Log(message);
     }
 
-    private static string ShortId(string value)
+    private static string ShortId(string v)
     {
-        if (string.IsNullOrEmpty(value))
-            return "-";
-
-        return value.Length <= 8 ? value : value.Substring(0, 8);
+        if (string.IsNullOrEmpty(v)) return "-";
+        return v.Length <= 8 ? v : v.Substring(0, 8);
     }
 }
