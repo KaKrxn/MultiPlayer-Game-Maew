@@ -24,6 +24,7 @@ public class ChatManager : NetworkBehaviour
     [Header("Optional")]
     [SerializeField] private Behaviour[] disableWhileChatOpen;
     [SerializeField] private bool unlockCursorWhileChatOpen = true;
+    [SerializeField] private bool alwaysShowCursor = false;
     [SerializeField] private bool closeWhenSubmittingEmptyMessage = true;
 
     private bool m_IsChatOpen;
@@ -41,6 +42,12 @@ public class ChatManager : NetworkBehaviour
     private void Start()
     {
         CloseChat(true);
+
+        if (alwaysShowCursor)
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
     }
 
     public override void OnNetworkSpawn()
@@ -119,6 +126,12 @@ public class ChatManager : NetworkBehaviour
         {
             Cursor.lockState = m_CachedLockMode;
             Cursor.visible = m_CachedCursorVisible;
+        }
+
+        if (alwaysShowCursor)
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
         }
 
         SetGameplayScriptsEnabled(true);
