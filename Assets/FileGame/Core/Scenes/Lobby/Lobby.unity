@@ -1078,7 +1078,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -198.62247, y: 0}
+  m_AnchoredPosition: {x: -86, y: 0}
   m_SizeDelta: {x: 730, y: 80}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &234681755
@@ -1290,7 +1290,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -198.62247, y: 0}
+  m_AnchoredPosition: {x: -86.00002, y: 0}
   m_SizeDelta: {x: 730, y: 80}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &326071576
@@ -2484,7 +2484,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -198.62247, y: 0}
+  m_AnchoredPosition: {x: -86.00002, y: 0}
   m_SizeDelta: {x: 730, y: 80}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &738194129
@@ -3535,7 +3535,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  GlobalObjectIdHash: 1601652373
+  GlobalObjectIdHash: 3687874562
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -4675,7 +4675,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 1970201637
+  GlobalObjectIdHash: 3908754927
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -6499,7 +6499,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -198.62247, y: 0}
+  m_AnchoredPosition: {x: -86.00002, y: 0}
   m_SizeDelta: {x: 730, y: 80}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &2063394257
