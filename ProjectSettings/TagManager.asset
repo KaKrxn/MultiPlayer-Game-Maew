@@ -7,6 +7,7 @@ TagManager:
   - CinemachineTarget
   - Train
   - Fuel
+  - Graveyard
   layers:
   - Default
   - TransparentFX
@@ -19,7 +20,7 @@ TagManager:
   - Interactable
   - Items
   - CharacterPreview
-  - 
+  - Graveyard
   - 
   - 
   - 

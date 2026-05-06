@@ -2553,8 +2553,16 @@ PrefabInstance:
       value: Pfb_SpawnPad
       objectReference: {fileID: 0}
     - target: {fileID: 6729569909255358139, guid: d89a425fed1e99b4d8c83ff16d8dc789, type: 3}
+      propertyPath: m_Layer
+      value: 11
+      objectReference: {fileID: 0}
+    - target: {fileID: 6729569909255358139, guid: d89a425fed1e99b4d8c83ff16d8dc789, type: 3}
       propertyPath: m_IsActive
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6729569909255358139, guid: d89a425fed1e99b4d8c83ff16d8dc789, type: 3}
+      propertyPath: m_TagString
+      value: Graveyard
       objectReference: {fileID: 0}
     - target: {fileID: 8428970528228186589, guid: d89a425fed1e99b4d8c83ff16d8dc789, type: 3}
       propertyPath: m_Enabled
