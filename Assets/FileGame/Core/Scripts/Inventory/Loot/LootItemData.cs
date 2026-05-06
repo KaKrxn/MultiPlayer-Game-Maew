@@ -7,7 +7,8 @@ public enum ItemType
     Weapon,
     Material,
     Consumable,
-    Tool
+    Tool,
+    Clothing
 }
 
 [System.Serializable]

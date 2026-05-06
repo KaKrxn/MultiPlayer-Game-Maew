@@ -12,6 +12,9 @@ public class ItemData : ScriptableObject
     [Header("Inventory Settings")]
     public int maxStack = 99;
 
+    [Header("Item Type")]
+    public ItemType itemType = ItemType.Generic;
+
     [Header("World Representation")]
     [Tooltip("The actual Prefab dropped into the world")]
     public GameObject dropPrefab;
