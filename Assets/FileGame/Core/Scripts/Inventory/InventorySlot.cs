@@ -33,14 +33,21 @@ public class InventorySlot : MonoBehaviour, IDropHandler
         }
     }
 
+    /// <summary>
+    /// Nulls out the slot's item reference without destroying the item.
+    /// Used by InventoryManager before reassigning items during swaps.
+    /// </summary>
+    public void ClearItem()
+    {
+        Item = null;
+    }
+
     public void OnDrop(PointerEventData eventData)
     {
         if (eventData.pointerDrag != null)
         {
-            eventData.pointerDrag.transform.SetParent(transform);
-
             var inventoryItem = eventData.pointerDrag.GetComponent<InventoryItem>();
-            inventoryItem.SetAvailable();
+            if (inventoryItem == null) return;
 
             if (!InstanceHandler.TryGetInstance(out InventoryManager inventoryManager))
             {

@@ -10,15 +10,15 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 69560e2e796fd8c4d85501eec6216774, type: 3}
-  m_Name: FoodData
+  m_Name: AntidoteData
   m_EditorClassIdentifier: Assembly-CSharp::ItemData
-  itemName: Food
-  itemPicture: {fileID: 21300004, guid: 215687feeab0b7445b4a1cd86c82c2e1, type: 3}
-  description: 
+  itemName: Antidote
+  itemPicture: {fileID: 21300012, guid: 215687feeab0b7445b4a1cd86c82c2e1, type: 3}
+  description: A medical antidote that cures toxicity. Its effectiveness is based
+    on its durability.
   itemType: 3
   maxStack: 1
   isConsumable: 1
   usesAmountValue: 0
-  toxicChance: 1
   promptDisplayType: 0
-  dropPrefab: {fileID: 1056250608077221738, guid: 70d7291b50d8ac84e855b8b27a9ef14b, type: 3}
+  dropPrefab: {fileID: 1056250608077221738, guid: a2c6b8ed21f4b664f833eb103e20dd27, type: 3}

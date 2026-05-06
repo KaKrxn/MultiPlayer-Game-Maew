@@ -1,5 +1,6 @@
 using UnityEngine;
 using Unity.Netcode;
+using System.Collections.Generic;
 using Blocks.Gameplay.Core;
 
 namespace FileGame.Core
@@ -36,7 +37,15 @@ namespace FileGame.Core
         private int healthHash;
 
         private float hungerTimer;
-        private float toxicTimer;
+        
+        private struct PendingToxicity { public float delay; public float amount; }
+        private List<PendingToxicity> _pendingDelays = new List<PendingToxicity>();
+
+        private struct ToxicRoutine { public int ticksRemaining; public float timer; }
+        private List<ToxicRoutine> _activeRoutines = new List<ToxicRoutine>();
+
+        private struct AntidoteRoutine { public float remainingHealingAmount; public float tickAmount; public float remainingLifetime; public float tickTimer; }
+        private List<AntidoteRoutine> _antidoteRoutines = new List<AntidoteRoutine>();
 
         private void Awake()
         {
@@ -73,6 +82,10 @@ namespace FileGame.Core
             stats.ModifyStat(SurvivalStatKeys.Weight, -stats.GetCurrentValue(SurvivalStatKeys.Weight), OwnerClientId, ModificationSource.Natural);
             stats.ModifyStat(SurvivalStatKeys.Toxic, -stats.GetCurrentValue(SurvivalStatKeys.Toxic), OwnerClientId, ModificationSource.Natural);
             
+            _pendingDelays.Clear();
+            _activeRoutines.Clear();
+            _antidoteRoutines.Clear();
+
             Debug.Log($"[Survival] Spawn Initialized: Vitality={stats.GetCurrentValue(SurvivalStatKeys.Vitality)}");
         }
 
@@ -123,37 +136,111 @@ namespace FileGame.Core
                 Debug.Log($"[Survival] Hunger Ticked: +{hungerAmountPerTick}% (Total: {stats.GetCurrentValue(SurvivalStatKeys.Hunger)}%)");
             }
 
-            // Read current debuff values
+            // Toxic ticks: multiple routines grow over time
+            for (int i = _activeRoutines.Count - 1; i >= 0; i--)
+            {
+                var routine = _activeRoutines[i];
+                routine.timer += Time.deltaTime;
+
+                if (routine.timer >= GameConstants.ToxicTickInterval)
+                {
+                    routine.timer = 0f;
+                    routine.ticksRemaining--;
+                    
+                    float tickAmount = Random.Range(GameConstants.ToxicTickMin, GameConstants.ToxicTickMax);
+                    stats.ModifyStat(SurvivalStatKeys.Toxic, tickAmount, OwnerClientId, ModificationSource.Natural);
+
+                    if (routine.ticksRemaining <= 0)
+                    {
+                        _activeRoutines.RemoveAt(i);
+                        Debug.Log("[Survival] An individual toxic routine has finished.");
+                    }
+                    else
+                    {
+                        _activeRoutines[i] = routine;
+                    }
+                }
+                else
+                {
+                    _activeRoutines[i] = routine;
+                }
+            }
+
+            // Handle delayed toxicity (Stomach ache)
+            for (int i = _pendingDelays.Count - 1; i >= 0; i--)
+            {
+                var pending = _pendingDelays[i];
+                pending.delay -= Time.deltaTime;
+
+                if (pending.delay <= 0f)
+                {
+                    stats.ModifyStat(SurvivalStatKeys.Toxic, pending.amount, OwnerClientId, ModificationSource.Environmental);
+                    Debug.Log($"[Survival] Delayed toxicity triggered (Stomach ache): +{pending.amount} Toxic.");
+                    _pendingDelays.RemoveAt(i);
+                }
+                else
+                {
+                    _pendingDelays[i] = pending;
+                }
+            }
+
+            // Handle Antidote effect
+            float toxicVal = stats.GetCurrentValue(SurvivalStatKeys.Toxic);
+            for (int i = _antidoteRoutines.Count - 1; i >= 0; i--)
+            {
+                var routine = _antidoteRoutines[i];
+                routine.remainingLifetime -= Time.deltaTime;
+
+                if (routine.remainingLifetime <= 0f)
+                {
+                    _antidoteRoutines.RemoveAt(i);
+                    Debug.Log("[Survival] Antidote routine expired naturally (2 minutes limit).");
+                    continue;
+                }
+
+                if (toxicVal > 0f)
+                {
+                    routine.tickTimer += Time.deltaTime;
+                    if (routine.tickTimer >= GameConstants.AntidoteTickInterval)
+                    {
+                        routine.tickTimer = 0f;
+                        
+                        // Limit healing so it doesn't overshoot existing toxicity or remaining healing power
+                        float heal = Mathf.Min(routine.tickAmount, routine.remainingHealingAmount);
+                        heal = Mathf.Min(heal, toxicVal); // do not heal if no toxicity
+                        
+                        if (heal > 0f)
+                        {
+                            stats.ModifyStat(SurvivalStatKeys.Toxic, -heal, OwnerClientId, ModificationSource.Healing);
+                            toxicVal -= heal;
+                            routine.remainingHealingAmount -= heal;
+                            
+                            Debug.Log($"[Survival] Antidote tick! Restored {-heal} Toxic (Remaining Potential: {routine.remainingHealingAmount}).");
+                        }
+                        
+                        if (routine.remainingHealingAmount <= 0.001f)
+                        {
+                            _antidoteRoutines.RemoveAt(i);
+                            Debug.Log("[Survival] Antidote fully consumed.");
+                            continue;
+                        }
+                    }
+                }
+                
+                _antidoteRoutines[i] = routine;
+            }
+
+            // Calculate target vitality from total debuffs
             float pain   = stats.GetCurrentValue(SurvivalStatKeys.Pain);
             float hunger = stats.GetCurrentValue(SurvivalStatKeys.Hunger);
             float weight = stats.GetCurrentValue(SurvivalStatKeys.Weight);
             float toxic  = stats.GetCurrentValue(SurvivalStatKeys.Toxic);
 
-            // Toxic ticks: debuff grows over time while toxic > 0
-            if (toxic > 0f)
-            {
-                toxicTimer += Time.deltaTime;
-                if (toxicTimer >= GameConstants.ToxicTickInterval)
-                {
-                    toxicTimer = 0f;
-                    float tickAmount = Random.Range(GameConstants.ToxicTickMin, GameConstants.ToxicTickMax);
-                    stats.ModifyStat(SurvivalStatKeys.Toxic, tickAmount, OwnerClientId, ModificationSource.Natural);
-                }
-            }
-
-            // Calculate target vitality from total debuffs
             float totalDebuffs = pain + hunger + weight + toxic;
             float targetVitality = GameConstants.MaxVitality - totalDebuffs;
 
-            // Weight alone should not kill the player
-            if (targetVitality < GameConstants.VitalityDeadZone && (pain + hunger + toxic) < GameConstants.MaxVitality)
-            {
-                targetVitality = GameConstants.VitalityDeadZone;
-            }
-            else
-            {
-                targetVitality = Mathf.Max(0f, targetVitality);
-            }
+            // Weight now triggers death (Vitality can reach 0)
+            targetVitality = Mathf.Max(0f, targetVitality);
 
             // Enforce Vitality stat
             float currentVitality = stats.GetCurrentValue(SurvivalStatKeys.Vitality);
@@ -187,6 +274,50 @@ namespace FileGame.Core
                 float painIncrease = Mathf.Abs(payload.changeAmount) * damageToPainRatio;
                 stats.ModifyStat(SurvivalStatKeys.Pain, painIncrease, OwnerClientId, ModificationSource.Injury);
             }
+
+            // Toxic reset: if toxicity increases from external/environment, reset tick growth
+            // Toxic session: if toxicity increases from external/environment, start a NEW individual tick routine
+            bool isToxicIncrease = payload.statID == SurvivalStatKeys.Toxic && payload.changeAmount > 0;
+            if (isToxicIncrease && isExternalDamage)
+            {
+                var newRoutine = new ToxicRoutine
+                {
+                    ticksRemaining = Random.Range(GameConstants.ToxicMaxTicksMin, GameConstants.ToxicMaxTicksMax + 1),
+                    timer = 0f
+                };
+                _activeRoutines.Add(newRoutine);
+                Debug.Log($"[Survival] New individual toxic routine started! {newRoutine.ticksRemaining} ticks.");
+            }
+        }
+
+        public void AddDelayedToxicity(float amount)
+        {
+            if (!IsServer) return;
+            
+            var newPending = new PendingToxicity
+            {
+                amount = amount,
+                delay = Random.Range(GameConstants.ToxicDelayMin, GameConstants.ToxicDelayMax)
+            };
+            
+            _pendingDelays.Add(newPending);
+            Debug.Log($"[Survival] Toxicity session delayed by {newPending.delay} seconds.");
+        }
+
+        public void AddAntidoteRoutine(float durability)
+        {
+            if (!IsServer) return;
+            
+            var newRoutine = new AntidoteRoutine
+            {
+                remainingHealingAmount = durability,
+                tickAmount = durability / GameConstants.AntidoteTickDivisor,
+                remainingLifetime = GameConstants.AntidoteMaxLifetime,
+                tickTimer = 0f
+            };
+            
+            _antidoteRoutines.Add(newRoutine);
+            Debug.Log($"[Survival] Antidote Consumed. Will heal {durability} Toxic over time (Cached for {GameConstants.AntidoteMaxLifetime}s).");
         }
     }
 }

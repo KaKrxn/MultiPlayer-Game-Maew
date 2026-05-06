@@ -339,6 +339,21 @@ public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
         }
     }
 
+    /// <summary>
+    /// Set by InventoryManager when a successful move/swap happens via OnDrop.
+    /// Tells OnEndDrag not to snap back to the old parent.
+    /// </summary>
+    private bool _wasMovedByManager = false;
+
+    /// <summary>
+    /// Called by InventoryManager after a successful move/swap so that
+    /// OnEndDrag knows not to revert the reparenting.
+    /// </summary>
+    public void MarkAsMoved()
+    {
+        _wasMovedByManager = true;
+    }
+
     public void OnEndDrag(PointerEventData eventData)
     {
         if (canvasGroup != null)
@@ -346,10 +361,14 @@ public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
             canvasGroup.blocksRaycasts = true;
         }
 
-        InventorySlot targetSlot = eventData.pointerEnter != null ? eventData.pointerEnter.GetComponentInParent<InventorySlot>() : null;
-
-        if (targetSlot == null)
+        if (_wasMovedByManager)
         {
+            // InventoryManager already handled the move via SetItem — just reset the flag
+            _wasMovedByManager = false;
+        }
+        else
+        {
+            // Drop was cancelled (no valid slot target) — snap back to original parent
             transform.SetParent(originalParent);
             SetAvailable();
         }
@@ -379,6 +398,7 @@ public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
         if (rectTransform != null)
         {
             rectTransform.anchoredPosition = Vector2.zero;
+            rectTransform.localScale = Vector3.one;
         }
     }
 }

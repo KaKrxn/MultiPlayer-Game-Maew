@@ -18,7 +18,7 @@ GameObject:
   - component: {fileID: 8854025699118076060}
   - component: {fileID: 3459170393801780091}
   m_Layer: 9
-  m_Name: Food Item
+  m_Name: Antidote Item
   m_TagString: Fuel
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -34,8 +34,8 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -9.7048, y: 1, z: -276.2956}
-  m_LocalScale: {x: 0.4, y: 0.4, z: 0.4}
-  m_ConstrainProportionsScale: 1
+  m_LocalScale: {x: 0.4, y: 1, z: 0.4}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -72,7 +72,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: ee41153b6d8aeea41b31f26b630e84eb, type: 2}
+  - {fileID: 2100000, guid: a65519f3367431e49be09e6c75ba80c2, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -129,7 +129,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 762065029
+  GlobalObjectIdHash: 1087947053
   InScenePlacedSourceGlobalObjectIdHash: 2053653021
   DeferredDespawnTick: 0
   Ownership: 2
@@ -155,7 +155,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Item
   ShowTopMostFoldoutHeaderGroup: 1
-  itemData: {fileID: 11400000, guid: defcd7764de4ad34b82ca099a7fda7e6, type: 2}
+  itemData: {fileID: 11400000, guid: 278431eebff072a4fb836aff48a53b99, type: 2}
   durability: 100
   weightKg: 0.1
   stackCount: 1

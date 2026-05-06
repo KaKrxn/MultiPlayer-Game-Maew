@@ -320,15 +320,19 @@ public class InventoryManager : MonoBehaviour
         var oldSlotIndex = Array.FindIndex(_inventoryData, x => x.inventoryItem == item);
 
         if (oldSlotIndex == -1 || newSlotIndex == -1) return;
+        if (oldSlotIndex == newSlotIndex) return; // dropped on same slot, no-op
 
-        // Server-authoritative path
+        // Server-authoritative path: send RPC only, let ApplyServerSlotUpdate handle the UI.
+        // Do NOT do optimistic local swap — it causes double-application when the server
+        // callback fires ApplyServerSlotUpdate on top of already-swapped data.
         if (_networkHandler != null)
         {
             _networkHandler.RequestMoveItemServerRpc(oldSlotIndex, newSlotIndex);
             return;
         }
 
-        // Fallback: local swap
+        // Fallback: local swap (offline/editor testing)
+        item.MarkAsMoved();
         SwapSlotsLocal(oldSlotIndex, newSlotIndex);
     }
 
@@ -337,6 +341,10 @@ public class InventoryManager : MonoBehaviour
         var temp = _inventoryData[newSlotIndex];
         _inventoryData[newSlotIndex] = _inventoryData[oldSlotIndex];
         _inventoryData[oldSlotIndex] = temp;
+
+        // Clear both slots before reassignment to prevent stale references
+        allSlots[oldSlotIndex].ClearItem();
+        allSlots[newSlotIndex].ClearItem();
 
         allSlots[newSlotIndex].SetItem(_inventoryData[newSlotIndex].inventoryItem);
         allSlots[oldSlotIndex].SetItem(_inventoryData[oldSlotIndex].inventoryItem);

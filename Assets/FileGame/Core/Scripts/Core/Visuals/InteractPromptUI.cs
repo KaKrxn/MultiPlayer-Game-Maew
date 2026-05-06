@@ -41,7 +41,6 @@ namespace Blocks.Gameplay.Core
         private bool m_UsingScreenSpaceCanvas;
         private bool m_IsShowing;
         private bool m_IsHoldingCurrentInteractable;
-        private bool m_IsEatingItem;
         private float m_CurrentHoldProgress;
 
         private readonly PromptBlockBindings m_GenericPrompt = new PromptBlockBindings();
@@ -76,7 +75,6 @@ namespace Blocks.Gameplay.Core
             canvasGroup.alpha = 0f;
             transform.localScale = Vector3.zero;
 
-            PlayerItemUseSystem.OnItemEatingProgress += HandleItemEatingProgress;
             StartCoroutine(FindLocalPlayerAddon());
         }
 
@@ -110,7 +108,6 @@ namespace Blocks.Gameplay.Core
                 m_LocalInteractionAddon.OnFocusChanged -= HandleFocusChanged;
                 m_LocalInteractionAddon.OnHoldStateChanged -= HandleHoldStateChanged;
             }
-            PlayerItemUseSystem.OnItemEatingProgress -= HandleItemEatingProgress;
         }
 
         private void Update()
@@ -120,7 +117,7 @@ namespace Blocks.Gameplay.Core
                 m_MainCamera = Camera.main;
             }
 
-            if (!m_IsShowing || (m_CurrentTarget == null && !m_IsEatingItem))
+            if (!m_IsShowing || m_CurrentTarget == null)
             {
                 return;
             }
@@ -128,13 +125,7 @@ namespace Blocks.Gameplay.Core
             RefreshPromptContents();
 
             Vector3 targetPosition;
-            if (m_IsEatingItem && m_CurrentTarget == null)
-            {
-                // If eating from hotbar and no world target, show slightly in front of camera
-                if (m_MainCamera == null) return;
-                targetPosition = m_MainCamera.transform.position + m_MainCamera.transform.forward * 1.5f;
-            }
-            else if (m_CurrentTarget != null)
+            if (m_CurrentTarget != null)
             {
                 targetPosition = m_CurrentTarget.position + offsetFromTarget;
             }
@@ -201,43 +192,17 @@ namespace Blocks.Gameplay.Core
             RefreshPromptContents();
         }
 
-        private void HandleItemEatingProgress(float progress, bool isEating)
-        {
-            m_IsEatingItem = isEating;
-            
-            // Only update if we aren't already world-interacting (Interaction has priority)
-            if (!m_IsHoldingCurrentInteractable)
-            {
-                m_CurrentHoldProgress = progress;
-                
-                if (isEating && !m_IsShowing)
-                {
-                    m_IsShowing = true;
-                    StopAllCoroutines();
-                    StartCoroutine(ShowAnimation());
-                }
-                else if (!isEating && m_IsShowing && m_CurrentInteractable == null)
-                {
-                    m_IsShowing = false;
-                    StopAllCoroutines();
-                    StartCoroutine(HideAnimation());
-                }
-                
-                RefreshPromptContents();
-            }
-        }
-
         private void RefreshPromptContents()
         {
-            if (m_CurrentInteractable == null && !m_IsEatingItem)
+            if (m_CurrentInteractable == null)
             {
                 return;
             }
 
             InteractionPromptContext context = new InteractionPromptContext(
                 GetLocalInteractor(),
-                (m_CurrentInteractable != null && m_CurrentInteractable is IHoldInteractable) || m_IsEatingItem,
-                m_IsHoldingCurrentInteractable || m_IsEatingItem,
+                (m_CurrentInteractable != null && m_CurrentInteractable is IHoldInteractable),
+                m_IsHoldingCurrentInteractable,
                 m_CurrentHoldProgress);
 
             InteractionPromptViewData viewData = BuildFallbackView(context);
@@ -252,15 +217,6 @@ namespace Blocks.Gameplay.Core
 
         private InteractionPromptViewData BuildFallbackView(InteractionPromptContext context)
         {
-            if (m_IsEatingItem && m_CurrentInteractable == null)
-            {
-                return new InteractionPromptViewData("Hold LMB", "Eating...", InteractionPromptVariant.Generic)
-                {
-                    ShowHoldProgress = true,
-                    HoldProgress = context.HoldProgress
-                };
-            }
-
             string keyText = context.IsHoldInteractable ? "Hold E" : "E";
             if (m_CurrentInteractable is IInteractionPromptDetailsProvider detailsProvider)
             {
@@ -278,7 +234,7 @@ namespace Blocks.Gameplay.Core
             };
         }
 
-        private void BindView(InteractionPromptViewData viewData)
+        public void BindView(InteractionPromptViewData viewData)
         {
             HideAllPanels();
 

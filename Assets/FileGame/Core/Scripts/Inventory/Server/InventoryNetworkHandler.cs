@@ -176,8 +176,8 @@ public class InventoryNetworkHandler : NetworkBehaviour
                 itemData, slotData.durability, slotData.weight, slotData.stackCount));
         }
 
-        // Apply weight change
-        ServerUtility.ApplyWeightToPlayer(OwnerClientId, -slotData.weight);
+        // Apply weight change for the whole stack
+        ServerUtility.ApplyWeightToPlayer(OwnerClientId, -(slotData.weight * slotData.stackCount));
 
         // Clear the slot
         _serverInventory[slotIndex] = NetworkInventorySlotData.Empty;
@@ -200,19 +200,53 @@ public class InventoryNetworkHandler : NetworkBehaviour
 
         int removeAmount = Mathf.Clamp(amount, 1, Mathf.Max(1, slotData.stackCount));
 
-        // Apply food effects server-side
+        // Deduct weight for the consumed items
+        ServerUtility.ApplyWeightToPlayer(OwnerClientId, -(slotData.weight * removeAmount));
+
+        // Apply effects server-side
         var statsHandler = GetComponent<Blocks.Gameplay.Core.CoreStatsHandler>();
         if (statsHandler != null)
         {
-            float reductionAmount = -(slotData.durability / GameConstants.HungerReductionDivisor);
-            statsHandler.ModifyStat(SurvivalStatKeys.Hunger, reductionAmount, OwnerClientId, Blocks.Gameplay.Core.ModificationSource.Natural);
-
-            // Rotten food chance
-            if (Random.value <= GameConstants.RottenFoodChance)
+            if (itemData.itemName == "Antidote")
             {
-                float toxicAmount = Random.Range(GameConstants.RottenToxicMin, GameConstants.RottenToxicMax);
-                statsHandler.ModifyStat(SurvivalStatKeys.Toxic, toxicAmount, OwnerClientId, Blocks.Gameplay.Core.ModificationSource.Environmental);
-                Debug.Log($"[Survival] Player ate rotten food! Added {toxicAmount} Toxic.");
+                // Antidote: Starts a restorative routine that cures toxicity
+                var survivalSys = statsHandler.GetComponent<PlayerSurvivalSystem>();
+                if (survivalSys != null)
+                {
+                    survivalSys.AddAntidoteRoutine(slotData.durability * removeAmount);
+                }
+                else
+                {
+                    // Fallback
+                    float reductionAmount = -slotData.durability * removeAmount;
+                    statsHandler.ModifyStat(SurvivalStatKeys.Toxic, reductionAmount, OwnerClientId, Blocks.Gameplay.Core.ModificationSource.Natural);
+                    Debug.Log($"[Survival] Player used Antidote (Fallback)! Cured {Mathf.Abs(reductionAmount)} Toxic.");
+                }
+            }
+            else
+            {
+                // Food: reduces hunger based on durability
+                float reductionAmount = -(slotData.durability / GameConstants.HungerReductionDivisor) * removeAmount;
+                statsHandler.ModifyStat(SurvivalStatKeys.Hunger, reductionAmount, OwnerClientId, Blocks.Gameplay.Core.ModificationSource.Natural);
+
+                // Rotten food chance
+                if (itemData.toxicChance > 0f && Random.value <= itemData.toxicChance)
+                {
+                    float toxicAmount = Random.Range(GameConstants.RottenToxicMin, GameConstants.RottenToxicMax);
+                    
+                    var survivalSys = statsHandler.GetComponent<PlayerSurvivalSystem>();
+                    if (survivalSys != null)
+                    {
+                        survivalSys.AddDelayedToxicity(toxicAmount);
+                        Debug.Log($"[Survival] Player ate food that will cause a stomach ache! Pending Toxic: {toxicAmount}");
+                    }
+                    else
+                    {
+                        // Fallback
+                        statsHandler.ModifyStat(SurvivalStatKeys.Toxic, toxicAmount, OwnerClientId, Blocks.Gameplay.Core.ModificationSource.Environmental);
+                        Debug.Log($"[Survival] Player ate food that caused instant toxicity! Added {toxicAmount} Toxic.");
+                    }
+                }
             }
         }
 
@@ -242,6 +276,9 @@ public class InventoryNetworkHandler : NetworkBehaviour
             if (slot.isEmpty || slot.itemName.ToString() != name) continue;
 
             int removeAmount = Mathf.Min(remaining, Mathf.Max(1, slot.stackCount));
+
+            // Deduct weight
+            ServerUtility.ApplyWeightToPlayer(OwnerClientId, -(slot.weight * removeAmount));
 
             if (slot.stackCount > removeAmount)
             {

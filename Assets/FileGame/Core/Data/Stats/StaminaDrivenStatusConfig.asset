@@ -19,4 +19,5 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 4925a2b97a00ac240bfdfc662c62cf39, type: 2}
   - {fileID: 11400000, guid: 98a6566798d351247b1ee421bd8373a4, type: 2}
   - {fileID: 11400000, guid: 16cb7ab3b10261045aca6e678b2da162, type: 2}
+  - {fileID: 11400000, guid: 168f194f95d551b48939981812e6d161, type: 2}
   primaryStatName: Vitality

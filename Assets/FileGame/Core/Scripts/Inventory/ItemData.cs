@@ -21,6 +21,8 @@ public class ItemData : ScriptableObject
     public int maxStack = 99;
     public bool isConsumable = false;
     public bool usesAmountValue = false;
+    [Range(0f, 1f)]
+    public float toxicChance = 0f;
 
     [Header("Prompt UI")]
     public ItemPromptDisplayType promptDisplayType = ItemPromptDisplayType.Generic;

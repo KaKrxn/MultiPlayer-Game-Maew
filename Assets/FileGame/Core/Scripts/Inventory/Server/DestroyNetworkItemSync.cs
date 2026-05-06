@@ -27,7 +27,7 @@ public class DestroyNetworkItemSync : NetworkBehaviour
 
             if (item != null)
             {
-                ServerUtility.ApplyWeightToPlayer(winnerClientId, item.WeightKg);
+                ServerUtility.ApplyWeightToPlayer(winnerClientId, item.WeightKg * item.StackCount);
             }
 
             GrantItemClientRpc(winnerClientId);

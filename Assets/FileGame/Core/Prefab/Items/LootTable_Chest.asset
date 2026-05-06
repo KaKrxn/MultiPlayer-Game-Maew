@@ -15,8 +15,10 @@ MonoBehaviour:
   tableName: Test
   possibleLoot:
   - itemData: {fileID: 11400000, guid: e33875acfedf64747af54a5aa0e31b42, type: 2}
-    dropWeight: 30
+    dropWeight: 20
   - itemData: {fileID: 11400000, guid: defcd7764de4ad34b82ca099a7fda7e6, type: 2}
-    dropWeight: 30
+    dropWeight: 20
   - itemData: {fileID: 11400000, guid: 2f1f302bbea44dbd8d052bb0b43d07da, type: 2}
     dropWeight: 40
+  - itemData: {fileID: 11400000, guid: 278431eebff072a4fb836aff48a53b99, type: 2}
+    dropWeight: 10
