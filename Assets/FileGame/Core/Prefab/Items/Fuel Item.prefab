@@ -108,7 +108,7 @@ BoxCollider:
   m_Enabled: 1
   serializedVersion: 3
   m_Size: {x: 1.2316306, y: 1.2315878, z: 0.64608765}
-  m_Center: {x: -0.11581513, y: 0.030640198, z: -0.08305359}
+  m_Center: {x: -0.11581513, y: 0.94, z: -0.08305359}
 --- !u!114 &1451874231880773009
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -121,8 +121,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 1106165368
-  InScenePlacedSourceGlobalObjectIdHash: 1459999777
+  GlobalObjectIdHash: 4134573353
+  InScenePlacedSourceGlobalObjectIdHash: 295607963
   DeferredDespawnTick: 0
   Ownership: 2
   AlwaysReplicateAsRoot: 0
@@ -148,8 +148,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Item
   ShowTopMostFoldoutHeaderGroup: 1
   itemData: {fileID: 11400000, guid: e33875acfedf64747af54a5aa0e31b42, type: 2}
-  durability: 100
-  weightKg: 0.1
+  durability: 50
+  weightKg: 1.6
   stackCount: 1
 --- !u!114 &4102663590874338085
 MonoBehaviour:
@@ -263,7 +263,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: fd49fcee932f2ab46acd8fe21d4649e1, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.016103
+      value: 0.94
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: fd49fcee932f2ab46acd8fe21d4649e1, type: 3}
       propertyPath: m_LocalPosition.z
