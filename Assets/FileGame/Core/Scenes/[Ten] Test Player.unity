@@ -2427,17 +2427,13 @@ PrefabInstance:
       propertyPath: GlobalObjectIdHash
       value: 4134573353
       objectReference: {fileID: 0}
-    - target: {fileID: 1451874231880773009, guid: 006f1194f9220ac489a47727c631e3ec, type: 3}
-      propertyPath: InScenePlacedSourceGlobalObjectIdHash
-      value: 295607963
-      objectReference: {fileID: 0}
     - target: {fileID: 2454544137999294083, guid: 006f1194f9220ac489a47727c631e3ec, type: 3}
       propertyPath: m_LocalPosition.x
       value: -31.4
       objectReference: {fileID: 0}
     - target: {fileID: 2454544137999294083, guid: 006f1194f9220ac489a47727c631e3ec, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.94
+      value: 0.29
       objectReference: {fileID: 0}
     - target: {fileID: 2454544137999294083, guid: 006f1194f9220ac489a47727c631e3ec, type: 3}
       propertyPath: m_LocalPosition.z
@@ -2470,14 +2466,6 @@ PrefabInstance:
     - target: {fileID: 2454544137999294083, guid: 006f1194f9220ac489a47727c631e3ec, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5253332735397872610, guid: 006f1194f9220ac489a47727c631e3ec, type: 3}
-      propertyPath: weightKg
-      value: 1.6
-      objectReference: {fileID: 0}
-    - target: {fileID: 5253332735397872610, guid: 006f1194f9220ac489a47727c631e3ec, type: 3}
-      propertyPath: durability
-      value: 50
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -7844,17 +7832,13 @@ PrefabInstance:
       propertyPath: GlobalObjectIdHash
       value: 2946782532
       objectReference: {fileID: 0}
-    - target: {fileID: 1451874231880773009, guid: a2c6b8ed21f4b664f833eb103e20dd27, type: 3}
-      propertyPath: InScenePlacedSourceGlobalObjectIdHash
-      value: 1087947053
-      objectReference: {fileID: 0}
     - target: {fileID: 2454544137999294083, guid: a2c6b8ed21f4b664f833eb103e20dd27, type: 3}
       propertyPath: m_LocalPosition.x
       value: -22.000927
       objectReference: {fileID: 0}
     - target: {fileID: 2454544137999294083, guid: a2c6b8ed21f4b664f833eb103e20dd27, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.50000066
+      value: 0.19
       objectReference: {fileID: 0}
     - target: {fileID: 2454544137999294083, guid: a2c6b8ed21f4b664f833eb103e20dd27, type: 3}
       propertyPath: m_LocalPosition.z
@@ -9690,6 +9674,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 906810160097097097, guid: 70d7291b50d8ac84e855b8b27a9ef14b, type: 3}
+      propertyPath: m_Center.y
+      value: 0.1999997
+      objectReference: {fileID: 0}
     - target: {fileID: 1056250608077221738, guid: 70d7291b50d8ac84e855b8b27a9ef14b, type: 3}
       propertyPath: m_Name
       value: Food Item
@@ -9704,7 +9692,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2454544137999294083, guid: 70d7291b50d8ac84e855b8b27a9ef14b, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.19999969
+      value: 0.29
       objectReference: {fileID: 0}
     - target: {fileID: 2454544137999294083, guid: 70d7291b50d8ac84e855b8b27a9ef14b, type: 3}
       propertyPath: m_LocalPosition.z
@@ -9737,6 +9725,10 @@ PrefabInstance:
     - target: {fileID: 2454544137999294083, guid: 70d7291b50d8ac84e855b8b27a9ef14b, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3572149017964942773, guid: 70d7291b50d8ac84e855b8b27a9ef14b, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.1999997
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -10008,10 +10000,6 @@ PrefabInstance:
       propertyPath: GlobalObjectIdHash
       value: 2886951297
       objectReference: {fileID: 0}
-    - target: {fileID: 2211003344, guid: 4314cc4beed8bc145a1edc381937cc73, type: 3}
-      propertyPath: InScenePlacedSourceGlobalObjectIdHash
-      value: 3843556070
-      objectReference: {fileID: 0}
     - target: {fileID: 3563420555284403559, guid: 4314cc4beed8bc145a1edc381937cc73, type: 3}
       propertyPath: m_Name
       value: LootBoxPrefab
@@ -10022,7 +10010,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8104946021269271510, guid: 4314cc4beed8bc145a1edc381937cc73, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 1.0000017
+      value: -0.19
       objectReference: {fileID: 0}
     - target: {fileID: 8104946021269271510, guid: 4314cc4beed8bc145a1edc381937cc73, type: 3}
       propertyPath: m_LocalPosition.z
@@ -15602,17 +15590,13 @@ PrefabInstance:
       propertyPath: GlobalObjectIdHash
       value: 2470552709
       objectReference: {fileID: 0}
-    - target: {fileID: 1451874231880773009, guid: e8ac6f6650ab4dd99206da52a7d92b3d, type: 3}
-      propertyPath: InScenePlacedSourceGlobalObjectIdHash
-      value: 2978946239
-      objectReference: {fileID: 0}
     - target: {fileID: 2454544137999294083, guid: e8ac6f6650ab4dd99206da52a7d92b3d, type: 3}
       propertyPath: m_LocalPosition.x
       value: -33.92101
       objectReference: {fileID: 0}
     - target: {fileID: 2454544137999294083, guid: e8ac6f6650ab4dd99206da52a7d92b3d, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.20200495
+      value: 0.29
       objectReference: {fileID: 0}
     - target: {fileID: 2454544137999294083, guid: e8ac6f6650ab4dd99206da52a7d92b3d, type: 3}
       propertyPath: m_LocalPosition.z
