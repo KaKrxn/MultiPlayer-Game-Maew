@@ -1,19 +1,29 @@
 using UnityEngine;
 using Unity.Netcode;
 using Blocks.Gameplay.Core;
+using FileGame.Core;
 
+/// <summary>
+/// Server-authoritative train fuel system.
+/// Tracks fuel consumption while moving and exposes methods for refueling.
+/// </summary>
 public class TrainFuelSystem : NetworkBehaviour
 {
     [Header("Train Reference")]
     public AutomatedNetworkTransform trainMovement;
 
     [Header("Fuel Settings")]
-    public float maxFuel = 100f;
-    public float fuelConsumptionRate = 2f;
+    public float maxFuel = GameConstants.TrainDefaultMaxFuel;
+    public float fuelConsumptionRate = GameConstants.TrainDefaultFuelConsumption;
 
     public NetworkVariable<float> currentFuel = new NetworkVariable<float>(
-        100f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server
+        GameConstants.TrainDefaultMaxFuel,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
     );
+
+    public float CurrentFuel => currentFuel.Value;
+    public float MaxFuel => maxFuel;
 
     public override void OnNetworkSpawn()
     {
@@ -25,28 +35,24 @@ public class TrainFuelSystem : NetworkBehaviour
 
     private void Update()
     {
-        //if (!IsServer) return;
-        // 🚨 [สำคัญมาก!] กำแพงป้องกัน: ถ้าไม่ใช่ Server หรือหารถไฟไม่เจอ ให้หยุดทำงานและกระโดดออกจากฟังก์ชันนี้ไปเลย!
         if (!IsServer || trainMovement == null) return;
 
-        // ถ้ารถไฟสตาร์ทเครื่องอยู่ (Server จะเป็นคนทำส่วนนี้เท่านั้น)
         if (trainMovement.IsMoving)
         {
             if (currentFuel.Value > 0)
             {
-                // ลดน้ำมันตามเวลา
                 currentFuel.Value -= fuelConsumptionRate * Time.deltaTime;
 
                 if (currentFuel.Value <= 0)
                 {
                     currentFuel.Value = 0;
                     trainMovement.SetTrainMoving(false);
-                    Debug.LogWarning("[Server] ⛽ น้ำมันหมดเกลี้ยง! บังคับเบรกรถไฟฉุกเฉิน");
+                    Debug.LogWarning("[TrainFuel] Fuel depleted! Emergency brake engaged.");
                 }
             }
             else
             {
-                // ถ้าน้ำมันหมดแล้วแต่รถไฟพยายามจะวิ่ง ให้สั่งดับเครื่อง
+                // Fuel empty but train is trying to move — force stop
                 trainMovement.SetTrainMoving(false);
             }
         }
@@ -56,10 +62,20 @@ public class TrainFuelSystem : NetworkBehaviour
     {
         if (!IsServer) return;
 
-        currentFuel.Value += amount;
-        if (currentFuel.Value > maxFuel)
-        {
-            currentFuel.Value = maxFuel;
-        }
+        currentFuel.Value = Mathf.Min(currentFuel.Value + amount, maxFuel);
+    }
+
+    public void ConfigureFuelConsumption(float newFuelConsumptionRate)
+    {
+        if (!IsServer) return;
+
+        fuelConsumptionRate = Mathf.Max(0f, newFuelConsumptionRate);
+    }
+
+    public void RefillToFull()
+    {
+        if (!IsServer) return;
+
+        currentFuel.Value = maxFuel;
     }
 }

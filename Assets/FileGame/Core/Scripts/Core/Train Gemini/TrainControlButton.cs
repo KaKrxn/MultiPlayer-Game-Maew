@@ -1,12 +1,16 @@
 using UnityEngine;
 using Blocks.Gameplay.Core;
 
+/// <summary>
+/// Alternative train control button using AutomatedNetworkTransform directly.
+/// Checks fuel before allowing forward movement.
+/// </summary>
 public class TrainControlButton : MonoBehaviour, IInteractable
 {
     [Header("Train Reference")]
     public AutomatedNetworkTransform trainController;
 
-    [Tooltip("ลากสคริปต์ TrainFuelSystem มาใส่ช่องนี้เพื่อเช็คก่อนสตาร์ท")]
+    [Tooltip("Drag the TrainFuelSystem here to check fuel before starting")]
     public TrainFuelSystem fuelSystem;
 
     [Header("Button Settings")]
@@ -28,20 +32,19 @@ public class TrainControlButton : MonoBehaviour, IInteractable
         }
         if (trainController != null)
         {
-            // [เพิ่มโค้ดส่วนนี้] เช็คน้ำมันก่อนกดปุ่มเดินหน้า
+            // Check fuel before allowing forward movement
             if (isForwardButton && fuelSystem != null && fuelSystem.currentFuel.Value <= 0)
             {
-                Debug.LogWarning($"[Client {interactorClientId}] ⛽ สตาร์ทไม่ติด! น้ำมันหมดถังแล้ว!");
-                // ยกเลิกการส่งคำสั่งไป Server ทันที
+                Debug.LogWarning($"[TrainControl] Player {interactorClientId} tried to start but fuel tank is empty!");
                 return;
             }
 
             trainController.SetTrainMovingRpc(isForwardButton);
 
             if (isForwardButton)
-                Debug.Log($"[Client {interactorClientId}] สับคันเร่ง! รถไฟกำลังพุ่งไปข้างหน้า");
+                Debug.Log($"[TrainControl] Player {interactorClientId} engaged throttle — moving forward.");
             else
-                Debug.Log($"[Client {interactorClientId}] ดึงเบรกฉุกเฉิน! รถไฟกำลังชะลอความเร็ว");
+                Debug.Log($"[TrainControl] Player {interactorClientId} pulled emergency brake — decelerating.");
         }
     }
 }

@@ -1,6 +1,10 @@
 using UnityEngine;
 using Blocks.Gameplay.Core;
 
+/// <summary>
+/// Applies a curved horizon visual effect to tiles based on distance from the train.
+/// Tiles within the flat safe zone remain at Y=0, beyond that they curve downward.
+/// </summary>
 public class CurvedHorizonTile : MonoBehaviour
 {
     [Header("Curved Horizon Settings")]
@@ -11,41 +15,40 @@ public class CurvedHorizonTile : MonoBehaviour
     public float flatDistance = 0f;
 
     private Transform trainTransform;
-    private EndlessMapManager mapManager; // เพิ่มตัวแปรมารับ Manager
+    private EndlessMapManager mapManager;
 
     private void Update()
     {
-        // 1. หาระยะรถไฟทุกเฟรมจนกว่าจะเจอ
+        // 1. Find the train reference (cached after first find)
         if (trainTransform == null)
         {
             var train = FindFirstObjectByType<AutomatedNetworkTransform>();
             if (train != null) trainTransform = train.transform;
-            else return; // ถ้ายังหาไม่เจอ ให้หยุดทำงานไปก่อน
+            else return; // Train not spawned yet — skip this frame
         }
 
-        // 2. --- [เพิ่มใหม่เพื่อแก้บั๊ก Client] ---
-        // ให้ Client วิ่งไปอ่านค่า Safe Zone จาก Manager ในเครื่องตัวเอง!
+        // 2. Client-side fix: read safe zone from the map manager
         if (mapManager == null)
         {
             mapManager = FindFirstObjectByType<EndlessMapManager>();
             if (mapManager != null)
             {
-                // คำนวณระยะแบนราบด้วยตัวเอง ไม่ต้องง้อ Server
+                // Calculate flat distance locally without depending on server
                 flatDistance = mapManager.safeFlatTilesCount * mapManager.standardTileLength;
             }
         }
 
-        // 3. หาระยะห่างแกน Z
+        // 3. Calculate Z-axis distance from train
         float distanceZ = transform.position.z - trainTransform.position.z;
 
-        // 4. ถ้าระยะห่างน้อยกว่า "ระยะพื้นราบ" ให้แบนราบ 100% (Y=0)
+        // 4. Within flat zone — keep at ground level
         if (distanceZ <= flatDistance)
         {
             SetYPosition(0f);
             return;
         }
 
-        // 5. คำนวณความโค้ง
+        // 5. Calculate curve effect (quadratic falloff)
         float curveDistance = distanceZ - flatDistance;
         float distancePercentage = Mathf.Clamp01(curveDistance / curveStartDistance);
         float targetY = curveDepth * (distancePercentage * distancePercentage);

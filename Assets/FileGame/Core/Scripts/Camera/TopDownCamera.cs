@@ -1,45 +1,45 @@
 using UnityEngine;
 
+/// <summary>
+/// Simple top-down camera that smoothly follows the local player.
+/// Automatically finds the local player in multiplayer via NetworkObject ownership.
+/// </summary>
 public class TopDownCamera : MonoBehaviour
 {
     [Header("Target Settings")]
-    [SerializeField] private Transform target; // ลาก Player มาใส่ หรือจะให้หาอัตโนมัติก็ได้
+    [SerializeField] private Transform target;
     
     [Header("Distance Settings")]
-    [SerializeField] private Vector3 offset = new Vector3(0, 10, -7); // ระยะห่าง (สูง 10, ถอยหลัง 7)
-    [SerializeField] private float smoothSpeed = 5f; // ความนุ่มนวลในการเลื่อนตาม
+    [SerializeField] private Vector3 offset = new Vector3(0, 10, -7);
+    [SerializeField] private float smoothSpeed = 5f;
 
     [Header("Rotation Settings")]
-    [SerializeField] private float tiltAngle = 55f; // มุมก้ม (Overcooked จะอยู่ประมาณ 45-60 องศา)
+    [SerializeField] private float tiltAngle = 55f;
 
     private void Start()
     {
-        // ตั้งค่ามุมก้มครั้งเดียวตอนเริ่ม
+        // Set the tilt angle once at start
         transform.rotation = Quaternion.Euler(tiltAngle, 0, 0);
     }
 
-    // ใช้ LateUpdate เพื่อให้กล้องขยับหลังจาก Player ขยับเสร็จแล้ว จะช่วยให้กล้องไม่สั่น
+    // LateUpdate ensures camera moves after player movement, preventing jitter
     private void LateUpdate()
     {
         if (target == null)
         {
-            // ถ้าเป็นเกม Multiplayer อาจจะหา Local Player มาเป็นเป้าหมาย
+            // In multiplayer, find the local player automatically
             FindLocalPlayer();
             return;
         }
 
-        // คำนวณตำแหน่งที่กล้องควรจะไปอยู่
         Vector3 desiredPosition = target.position + offset;
-        
-        // ทำให้กล้องเลื่อนตามแบบนุ่มนวล (Lerp)
         Vector3 smoothedPosition = Vector3.Lerp(transform.position, desiredPosition, smoothSpeed * Time.deltaTime);
-        
         transform.position = smoothedPosition;
     }
 
     private void FindLocalPlayer()
     {
-        // สำหรับ Unity Netcode: หา Object ที่มี NetworkObject และเป็น Owner
+        // Find the player object that is owned by the local client
         var players = GameObject.FindGameObjectsWithTag("Player");
         foreach (var p in players)
         {

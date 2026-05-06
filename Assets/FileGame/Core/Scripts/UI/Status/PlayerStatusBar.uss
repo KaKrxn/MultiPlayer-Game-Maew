@@ -51,6 +51,10 @@
     background-image: resource("UI/Icon_Hunger");
 }
 
+.toxic-icon-img {
+    background-image: resource("UI/Icon_Toxic");
+}
+
 /* ---- Main Bar Container = the white-bordered "track" ---- */
 .main-bar-container {
     position: absolute;
@@ -60,7 +64,7 @@
     height: 35px;
     border-width: 3px;
     border-color: #F8F5E1;
-    border-radius: 15px;
+    border-radius: 10px;
     background-color: rgba(0, 0, 0, 0.35);
 }
 
@@ -105,7 +109,7 @@
 
 .pain-color {
     background-color: transparent;
-    -unity-background-image-tint-color: #990033; /* Solid pain color for the stripes */
+    -unity-background-image-tint-color: #b61b17; /* Solid pain color for the stripes */
 }
 
 .weight-color {
@@ -116,6 +120,11 @@
 .hunger-color {
     background-color: transparent;
     -unity-background-image-tint-color: #FFB300; /* Solid hunger color for the stripes */
+}
+
+.toxic-color {
+    background-color: transparent;
+    -unity-background-image-tint-color: #8c52ff; /* Purple toxic color */
 }
 
 .extra-energy-color {
@@ -143,7 +152,7 @@
     height: 100%;
     border-width: 3px;
     border-color: #F8F5E1;
-    border-radius: 15px;
+    border-radius: 10px;
     background-color: rgba(0, 0, 0, 0.35);
 }
 

@@ -34,33 +34,25 @@ namespace FileGame.Core
         private CoreStatsHandler stats;
         private CoreMovement movement;
         private int healthHash;
-        private int painHash;
-        private int hungerHash;
-        private int vitalityHash;
-        private int weightHash;
 
         private float hungerTimer;
+        private float toxicTimer;
 
         private void Awake()
         {
             stats = GetComponent<CoreStatsHandler>();
             movement = GetComponent<CoreMovement>();
             healthHash = StatKeys.Health;
-            painHash = Animator.StringToHash("Pain");
-            hungerHash = Animator.StringToHash("Hunger");
-            vitalityHash = Animator.StringToHash("Vitality");
-            weightHash = Animator.StringToHash("Weight");
         }
 
         public override void OnNetworkSpawn()
         {
-            if (!IsServer) return; // Logic only runs on server
+            if (!IsServer) return;
             
             stats.OnStatChanged += HandleStatChanged;
             hungerTimer = 0f;
 
-            // Optional: Hard reset survival stats on spawn to prevent "old value" carryover bugs
-            // Only if they aren't already at their starting defaults
+            // Reset survival stats on spawn to prevent stale value carryover
             InitializeSurvivalStats();
         }
 
@@ -68,33 +60,33 @@ namespace FileGame.Core
         {
             if (!IsServer) return;
 
-            // Ensure we start with 100 Vitality and 0 Debuffs if this is a fresh spawn
-            // This prevents the "instant 100% debuff" bug if assets were misconfigured
-            float currentVitality = stats.GetCurrentValue(vitalityHash);
+            // Ensure we start with full Vitality on a fresh spawn
+            float currentVitality = stats.GetCurrentValue(SurvivalStatKeys.Vitality);
             if (currentVitality <= 0)
             {
-                stats.ModifyStat(vitalityHash, 100f, OwnerClientId, ModificationSource.Natural);
+                stats.ModifyStat(SurvivalStatKeys.Vitality, GameConstants.MaxVitality, OwnerClientId, ModificationSource.Natural);
             }
 
-            // Reset debuffs to 0 on a fresh spawn
-            stats.ModifyStat(painHash, -stats.GetCurrentValue(painHash), OwnerClientId, ModificationSource.Natural);
-            stats.ModifyStat(hungerHash, -stats.GetCurrentValue(hungerHash), OwnerClientId, ModificationSource.Natural);
-            stats.ModifyStat(weightHash, -stats.GetCurrentValue(weightHash), OwnerClientId, ModificationSource.Natural);
+            // Reset all debuffs to 0
+            stats.ModifyStat(SurvivalStatKeys.Pain, -stats.GetCurrentValue(SurvivalStatKeys.Pain), OwnerClientId, ModificationSource.Natural);
+            stats.ModifyStat(SurvivalStatKeys.Hunger, -stats.GetCurrentValue(SurvivalStatKeys.Hunger), OwnerClientId, ModificationSource.Natural);
+            stats.ModifyStat(SurvivalStatKeys.Weight, -stats.GetCurrentValue(SurvivalStatKeys.Weight), OwnerClientId, ModificationSource.Natural);
+            stats.ModifyStat(SurvivalStatKeys.Toxic, -stats.GetCurrentValue(SurvivalStatKeys.Toxic), OwnerClientId, ModificationSource.Natural);
             
-            Debug.Log($"[Survival] Swpawn Initialized: Vitality={stats.GetCurrentValue(vitalityHash)}");
+            Debug.Log($"[Survival] Spawn Initialized: Vitality={stats.GetCurrentValue(SurvivalStatKeys.Vitality)}");
         }
 
         public void ApplyCarriedWeightDelta(float kgDelta)
         {
             if (!IsServer || stats == null) return;
 
-            float currentWeight = stats.GetCurrentValue(weightHash);
-            float targetWeight = Mathf.Max(0f, currentWeight + (kgDelta * 10f));
+            float currentWeight = stats.GetCurrentValue(SurvivalStatKeys.Weight);
+            float targetWeight = Mathf.Max(0f, currentWeight + (kgDelta * GameConstants.WeightToDebuffMultiplier));
             float appliedDelta = targetWeight - currentWeight;
 
             if (Mathf.Abs(appliedDelta) > 0.001f)
             {
-                stats.ModifyStat(weightHash, appliedDelta, OwnerClientId, ModificationSource.Natural);
+                stats.ModifyStat(SurvivalStatKeys.Weight, appliedDelta, OwnerClientId, ModificationSource.Natural);
             }
         }
 
@@ -110,17 +102,16 @@ namespace FileGame.Core
         {
             if (!IsServer) return;
 
-            // Handle discrete Hunger ticks (+10% every 2 mins by default)
-            // If running or jumping, hunger increases 10% faster
+            // Hunger ticks: base rate modified by exertion
             float hungerMultiplier = 1.0f;
             if (movement != null)
             {
                 bool isRunning = movement.IsSprinting && movement.CurrentSpeed > 0.1f && movement.IsGrounded;
-                bool isJumping = !movement.IsGrounded; // Consider any time in air as "exertion" for hunger logic
+                bool isJumping = !movement.IsGrounded;
                 
                 if (isRunning || isJumping)
                 {
-                    hungerMultiplier = 1.1f;
+                    hungerMultiplier = GameConstants.HungerExertionMultiplier;
                 }
             }
 
@@ -128,29 +119,53 @@ namespace FileGame.Core
             if (hungerTimer >= hungerInterval)
             {
                 hungerTimer -= hungerInterval;
-                stats.ModifyStat(hungerHash, hungerAmountPerTick, OwnerClientId, ModificationSource.Natural);
-                Debug.Log($"[Survival] Hunger Ticked: +10% (Total: {stats.GetCurrentValue(hungerHash)}%)");
+                stats.ModifyStat(SurvivalStatKeys.Hunger, hungerAmountPerTick, OwnerClientId, ModificationSource.Natural);
+                Debug.Log($"[Survival] Hunger Ticked: +{hungerAmountPerTick}% (Total: {stats.GetCurrentValue(SurvivalStatKeys.Hunger)}%)");
             }
 
-            // Calculate current survival capacity (Vitality)
-            float pain = stats.GetCurrentValue(painHash);
-            float hunger = stats.GetCurrentValue(hungerHash);
-            float weight = stats.GetCurrentValue(weightHash);
+            // Read current debuff values
+            float pain   = stats.GetCurrentValue(SurvivalStatKeys.Pain);
+            float hunger = stats.GetCurrentValue(SurvivalStatKeys.Hunger);
+            float weight = stats.GetCurrentValue(SurvivalStatKeys.Weight);
+            float toxic  = stats.GetCurrentValue(SurvivalStatKeys.Toxic);
 
-            float totalDebuffs = pain + hunger + weight;
-            float targetVitality = Mathf.Max(0f, 100f - totalDebuffs);
-
-            // 1. Enforce Vitality stat (Life)
-            float currentVitality = stats.GetCurrentValue(vitalityHash);
-            float vitalityDiff = targetVitality - currentVitality;
-            if (Mathf.Abs(vitalityDiff) > 0.05f) // Small margin
+            // Toxic ticks: debuff grows over time while toxic > 0
+            if (toxic > 0f)
             {
-                stats.ModifyStat(vitalityHash, vitalityDiff, OwnerClientId, ModificationSource.Natural);
+                toxicTimer += Time.deltaTime;
+                if (toxicTimer >= GameConstants.ToxicTickInterval)
+                {
+                    toxicTimer = 0f;
+                    float tickAmount = Random.Range(GameConstants.ToxicTickMin, GameConstants.ToxicTickMax);
+                    stats.ModifyStat(SurvivalStatKeys.Toxic, tickAmount, OwnerClientId, ModificationSource.Natural);
+                }
             }
 
-            // 2. Enforce Energy (Health) cap based on current capacity
+            // Calculate target vitality from total debuffs
+            float totalDebuffs = pain + hunger + weight + toxic;
+            float targetVitality = GameConstants.MaxVitality - totalDebuffs;
+
+            // Weight alone should not kill the player
+            if (targetVitality < GameConstants.VitalityDeadZone && (pain + hunger + toxic) < GameConstants.MaxVitality)
+            {
+                targetVitality = GameConstants.VitalityDeadZone;
+            }
+            else
+            {
+                targetVitality = Mathf.Max(0f, targetVitality);
+            }
+
+            // Enforce Vitality stat
+            float currentVitality = stats.GetCurrentValue(SurvivalStatKeys.Vitality);
+            float vitalityDiff = targetVitality - currentVitality;
+            if (Mathf.Abs(vitalityDiff) > GameConstants.VitalityMargin)
+            {
+                stats.ModifyStat(SurvivalStatKeys.Vitality, vitalityDiff, OwnerClientId, ModificationSource.Natural);
+            }
+
+            // Cap Health to current vitality
             float currentHealth = stats.GetCurrentValue(healthHash);
-            if (currentHealth > targetVitality + 0.05f)
+            if (currentHealth > targetVitality + GameConstants.VitalityMargin)
             {
                 float overage = targetVitality - currentHealth;
                 stats.ModifyStat(healthHash, overage, OwnerClientId, ModificationSource.Natural);
@@ -159,20 +174,18 @@ namespace FileGame.Core
 
         private void HandleStatChanged(StatChangePayload payload)
         {
-            // IMPORTANT: We only intercept actual EXTERNAL damage to the Energy Bar (Health)
-            // If the source is 'Natural' (our own capping logic) or 'Consumption' (sprinting), we ignore it!
+            // Only intercept external damage to Health (not internal capping or sprint consumption)
             bool isExternalDamage = payload.sourceType == ModificationSource.Direct || 
                                     payload.sourceType == ModificationSource.Damage || 
                                     payload.sourceType == ModificationSource.Environmental;
 
             if (payload.statID == healthHash && payload.changeAmount < 0 && isExternalDamage)
             {
-                // 1. Revert the health drain (keep the green bar full)
+                // Revert the health drain and convert it to Pain
                 stats.ModifyStat(healthHash, Mathf.Abs(payload.changeAmount), OwnerClientId, ModificationSource.Healing);
                 
-                // 2. Add it to Pain instead
                 float painIncrease = Mathf.Abs(payload.changeAmount) * damageToPainRatio;
-                stats.ModifyStat(painHash, painIncrease, OwnerClientId, ModificationSource.Injury);
+                stats.ModifyStat(SurvivalStatKeys.Pain, painIncrease, OwnerClientId, ModificationSource.Injury);
             }
         }
     }

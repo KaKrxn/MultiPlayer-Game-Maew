@@ -8,6 +8,20 @@ public class InventorySlot : MonoBehaviour, IDropHandler
 
     public bool IsEmpty => Item == null;
 
+    private void Awake()
+    {
+        UnityEngine.UI.Graphic[] graphics = GetComponentsInChildren<UnityEngine.UI.Graphic>(true);
+        UnityEngine.UI.Graphic rootGraphic = GetComponent<UnityEngine.UI.Graphic>();
+
+        foreach (var g in graphics)
+        {
+            if (g != rootGraphic)
+            {
+                g.raycastTarget = false;
+            }
+        }
+    }
+
     public void SetItem(InventoryItem itemToSet)
     {
         Item = itemToSet;

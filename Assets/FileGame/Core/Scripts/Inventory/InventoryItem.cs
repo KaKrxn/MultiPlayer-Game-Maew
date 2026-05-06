@@ -15,6 +15,13 @@ public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
     [SerializeField] private Slider durabilitySlider;
     [SerializeField] private TMP_Text durabilityLabel;
     [SerializeField] private TMP_Text weightText;
+    [SerializeField] private Sprite defaultSprite;
+
+    [Header("Dynamic UI References")]
+    [SerializeField] private GameObject genericPanel;
+    [SerializeField] private GameObject scrapPanel;
+    [SerializeField] private TMP_Text scrapAmountText;
+
 
     private static Sprite s_DefaultSprite;
 
@@ -28,6 +35,18 @@ public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
         canvas = GetComponentInParent<Canvas>();
         itemImage = GetComponent<Image>();
 
+        // Unpack dynamic root panels in case not formally mapped
+        Transform genPanel = transform.Find("Generic");
+        if (genPanel != null && genericPanel == null) genericPanel = genPanel.gameObject;
+
+        Transform scrPanel = transform.Find("Scrap");
+        if (scrPanel != null)
+        {
+            if (scrapPanel == null) scrapPanel = scrPanel.gameObject;
+            Transform wtext = scrPanel.Find("WText (TMP)");
+            if (wtext != null && scrapAmountText == null) scrapAmountText = wtext.GetComponent<TMP_Text>();
+        }
+
         if (amountText == null)
         {
             Transform amountTransform = transform.Find("amount");
@@ -37,15 +56,36 @@ public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
             }
         }
 
+        DisableChildRaycasts();
         EnsureStatUI();
+    }
+
+    private void DisableChildRaycasts()
+    {
+        Graphic[] graphics = GetComponentsInChildren<Graphic>(true);
+        Graphic rootGraphic = GetComponent<Graphic>();
+
+        foreach (var g in graphics)
+        {
+            if (g != rootGraphic)
+            {
+                g.raycastTarget = false;
+            }
+        }
     }
 
     public void Init(ItemData data, int amount)
     {
-        Init(new ItemInstanceData(data, 100, 0.1f));
+        float defaultWeight = data != null && data.usesAmountValue ? 0f : 0.1f;
+        Init(new ItemInstanceData(data, 100, defaultWeight, amount));
     }
 
     public void Init(ItemInstanceData itemInstance)
+    {
+        SetInstanceData(itemInstance);
+    }
+
+    public void SetInstanceData(ItemInstanceData itemInstance)
     {
         InstanceData = itemInstance;
         EnsureStatUI();
@@ -61,18 +101,55 @@ public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
             itemImage.sprite = itemInstance.itemData.itemPicture;
         }
 
-        if (amountText != null)
-        {
-            amountText.text = string.Empty;
-            amountText.gameObject.SetActive(false);
-        }
-
         UpdateStatUI();
     }
 
     private void UpdateStatUI()
     {
         if (!InstanceData.IsValid) return;
+
+        bool isScrap = InstanceData.itemData != null && InstanceData.itemData.promptDisplayType == ItemPromptDisplayType.ScrapMetal;
+
+        if (genericPanel != null) genericPanel.SetActive(!isScrap);
+        if (scrapPanel != null) scrapPanel.SetActive(isScrap);
+
+        if (isScrap)
+        {
+            if (scrapAmountText != null)
+            {
+                scrapAmountText.text = InstanceData.AmountDisplayText;
+                scrapAmountText.gameObject.SetActive(InstanceData.ShouldShowAmountText);
+            }
+
+            // Hide the shared amountText (generic) if it overlaps or is used for Generic
+            if (amountText != null && amountText != scrapAmountText)
+                amountText.gameObject.SetActive(false);
+            
+            return;
+        }
+
+        // Generic logic
+        bool showStats = !InstanceData.UsesAmountValue;
+
+        // statsRoot should be specifically for durability/weight bars, not the whole item!
+        // We find it dynamically to avoid deactivating parents
+        Transform statsRoot = transform.Find("ItemStats");
+
+        if (statsRoot != null)
+        {
+            statsRoot.gameObject.SetActive(showStats);
+        }
+
+        if (amountText != null)
+        {
+            amountText.text = InstanceData.AmountDisplayText;
+            amountText.gameObject.SetActive(InstanceData.ShouldShowAmountText);
+        }
+
+        if (!showStats)
+        {
+            return;
+        }
 
         if (durabilitySlider != null)
         {
@@ -89,6 +166,7 @@ public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
         if (weightText != null)
         {
             weightText.text = $"{InstanceData.weightKg:0.0}kg";
+            weightText.gameObject.SetActive(InstanceData.weightKg > 0.001f);
         }
     }
 
@@ -204,13 +282,33 @@ public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
 
     private Sprite GetDefaultSprite()
     {
+        if (defaultSprite != null) return defaultSprite;
+
         if (s_DefaultSprite == null)
         {
-            s_DefaultSprite = Resources.GetBuiltinResource<Sprite>("UI/Skin/UISprite.psd");
+            string[] paths = { "UI/Skin/UISprite.psd", "UI/Skin/Background.psd", "UI/Skin/UISprite.png", "UI/Skin/Background.png" };
+            foreach (string path in paths)
+            {
+                try
+                {
+                    s_DefaultSprite = Resources.GetBuiltinResource<Sprite>(path);
+                    if (s_DefaultSprite != null) break;
+                }
+                catch { }
+            }
+
+            if (s_DefaultSprite == null)
+            {
+                Texture2D tex = new Texture2D(1, 1);
+                tex.SetPixel(0, 0, Color.white);
+                tex.Apply();
+                s_DefaultSprite = Sprite.Create(tex, new Rect(0, 0, 1, 1), new Vector2(0.5f, 0.5f));
+            }
         }
 
         return s_DefaultSprite;
     }
+
 
     public void OnBeginDrag(PointerEventData eventData)
     {
@@ -220,9 +318,16 @@ public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
             canvasGroup.blocksRaycasts = false;
         }
 
+        Canvas rootCanvas = GetComponentInParent<Canvas>();
+        if (rootCanvas != null)
+        {
+            canvas = rootCanvas;
+        }
+
         if (canvas != null)
         {
-            transform.SetParent(canvas.transform);
+            transform.SetParent(canvas.transform, true);
+            transform.SetAsLastSibling();
         }
     }
 
@@ -241,7 +346,9 @@ public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
             canvasGroup.blocksRaycasts = true;
         }
 
-        if (eventData.pointerEnter == null || eventData.pointerEnter.GetComponent<InventorySlot>() == null)
+        InventorySlot targetSlot = eventData.pointerEnter != null ? eventData.pointerEnter.GetComponentInParent<InventorySlot>() : null;
+
+        if (targetSlot == null)
         {
             transform.SetParent(originalParent);
             SetAvailable();

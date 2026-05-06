@@ -27,7 +27,7 @@ public class DestroyNetworkItemSync : NetworkBehaviour
 
             if (item != null)
             {
-                ApplyWeightToPlayer(winnerClientId, item.WeightKg);
+                ServerUtility.ApplyWeightToPlayer(winnerClientId, item.WeightKg);
             }
 
             GrantItemClientRpc(winnerClientId);
@@ -44,9 +44,29 @@ public class DestroyNetworkItemSync : NetworkBehaviour
         if (NetworkManager.Singleton.LocalClientId != targetClientId) return;
 
         Item myItem = GetComponent<Item>();
-        if (myItem != null && myItem.Data != null && InventoryManager.instance != null)
+        if (myItem != null && myItem.Data != null)
         {
-            InventoryManager.instance.AddItem(myItem.BuildItemInstanceData());
+            // Route through server-authoritative inventory handler
+            if (PlayerLocation.localPlayerMovement != null)
+            {
+                var networkHandler = PlayerLocation.localPlayerMovement.GetComponent<InventoryNetworkHandler>();
+                if (networkHandler != null)
+                {
+                    var instanceData = myItem.BuildItemInstanceData();
+                    networkHandler.RequestAddItemServerRpc(
+                        new Unity.Collections.FixedString32Bytes(instanceData.itemData.itemName),
+                        instanceData.durabilityPercent,
+                        instanceData.weightKg,
+                        instanceData.stackCount);
+                    return;
+                }
+            }
+
+            // Fallback: local-only
+            if (InventoryManager.instance != null)
+            {
+                InventoryManager.instance.AddItem(myItem.BuildItemInstanceData());
+            }
         }
     }
 
@@ -54,19 +74,5 @@ public class DestroyNetworkItemSync : NetworkBehaviour
     private void DeactivateObjectClientRpc()
     {
         gameObject.SetActive(false);
-    }
-
-    private void ApplyWeightToPlayer(ulong clientId, float weightKg)
-    {
-        if (NetworkManager.Singleton == null) return;
-        if (!NetworkManager.Singleton.ConnectedClients.TryGetValue(clientId, out var clientData)) return;
-
-        NetworkObject playerObject = clientData.PlayerObject;
-        if (playerObject == null) return;
-
-        if (playerObject.TryGetComponent<PlayerSurvivalSystem>(out var survivalSystem))
-        {
-            survivalSystem.ApplyCarriedWeightDelta(weightKg);
-        }
     }
 }

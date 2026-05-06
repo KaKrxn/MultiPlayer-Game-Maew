@@ -209,8 +209,9 @@ namespace Blocks.Gameplay.Core
         /// Gets the current value of a specific stat.
         /// </summary>
         /// <param name="statHash">The hash of the stat (use StatKeys).</param>
+        /// <param name="warnIfMissing">Whether to log a warning if the stat is not found.</param>
         /// <returns>The current value, or 0 if the stat is not found.</returns>
-        public float GetCurrentValue(int statHash)
+        public float GetCurrentValue(int statHash, bool warnIfMissing = true)
         {
             int index = FindStatIndex(statHash);
             if (index != -1)
@@ -218,7 +219,10 @@ namespace Blocks.Gameplay.Core
                 return m_RuntimeStats[index].CurrentValue;
             }
 
-            Debug.LogWarning($"[CoreStatsHandler] GetCurrentValue: Stat with hash {statHash} not found on {gameObject.name}, returning 0", this);
+            if (warnIfMissing)
+            {
+                Debug.LogWarning($"[CoreStatsHandler] GetCurrentValue: Stat with hash {statHash} not found on {gameObject.name}, returning 0", this);
+            }
             return 0;
         }
 
@@ -226,12 +230,18 @@ namespace Blocks.Gameplay.Core
         /// Gets the maximum value of a specific stat.
         /// </summary>
         /// <param name="statHash">The hash of the stat (use StatKeys).</param>
+        /// <param name="warnIfMissing">Whether to log a warning if the stat is not found.</param>
         /// <returns>The maximum value, or 0 if the stat is not found.</returns>
-        public float GetMaxValue(int statHash)
+        public float GetMaxValue(int statHash, bool warnIfMissing = true)
         {
             if (m_StatDefinitions.TryGetValue(statHash, out var def))
             {
                 return def.maxValue;
+            }
+
+            if (warnIfMissing)
+            {
+                Debug.LogWarning($"[CoreStatsHandler] GetMaxValue: Stat with hash {statHash} not found on {gameObject.name}, returning 0", this);
             }
             return 0f;
         }

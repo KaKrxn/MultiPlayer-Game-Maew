@@ -3,37 +3,45 @@ using Unity.Netcode;
 using System.Collections;
 using System.Collections.Generic;
 
-// [เพิ่มคลาสเก็บข้อมูล Biome]
+/// <summary>
+/// Data container for a biome configuration.
+/// Each biome has a set of tile prefabs and a range of tiles to spawn before transitioning.
+/// </summary>
 [System.Serializable]
 public class BiomeData
 {
     public string biomeName = "New Biome";
-    [Tooltip("ใส่ Prefab ฉากทั้งหมดที่อยู่ใน Biome นี้")]
+    [Tooltip("All tile prefabs belonging to this biome")]
     public GameObject[] tilePrefabs;
-    [Tooltip("จำนวนฉากขั้นต่ำที่จะสุ่มออกมาก่อนเปลี่ยน Biome")]
+    [Tooltip("Minimum number of tiles before biome transition")]
     public int minTiles = 3;
-    [Tooltip("จำนวนฉากสูงสุดที่จะสุ่มออกมาก่อนเปลี่ยน Biome")]
+    [Tooltip("Maximum number of tiles before biome transition")]
     public int maxTiles = 7;
 }
 
+/// <summary>
+/// Server-authoritative endless map generator.
+/// Spawns tiles in biome sequences with transition tiles between biomes.
+/// Automatically finds the train on spawn and feeds waypoints to it.
+/// </summary>
 public class EndlessMapManager : NetworkBehaviour
 {
     [Header("Train Reference")]
-    [Tooltip("ไม่ต้องลากใส่แล้ว! ระบบจะค้นหารถไฟอัตโนมัติตอนเริ่มเกม")]
+    [Tooltip("Auto-discovered at runtime — no need to assign")]
     public Transform trainTransform;
 
-    [Header("Logic 4: Start Sequence (ฉากเริ่มต้น)")]
-    [Tooltip("ฉากที่จะถูกเสกเรียงตามลำดับตอนเริ่มเกม")]
+    [Header("Start Sequence")]
+    [Tooltip("Tiles spawned in order at game start")]
     public GameObject[] startTiles;
 
-    [Header("Logic 1 & 2: Biome Settings (ระบบพื้นที่)")]
+    [Header("Biome Settings")]
     public BiomeData[] biomes;
     public float standardTileLength = 50f;
 
-    [Header("Logic 3: Transition Settings (ฉากเชื่อมคั่นกลาง)")]
-    [Tooltip("ฉากอุโมงค์ หรือภูเขา ไว้กั้นสายตาก่อนเปลี่ยน Biome")]
+    [Header("Transition Settings")]
+    [Tooltip("Transition tile (tunnel/mountain) placed between biomes")]
     public GameObject transitionTilePrefab;
-    [Tooltip("ความยาวของฉากเชื่อม (มักจะสั้นกว่าฉากปกติ)")]
+    [Tooltip("Length of the transition tile (usually shorter than standard)")]
     public float transitionTileLength = 30f;
 
     [Header("General Settings")]
@@ -43,11 +51,10 @@ public class EndlessMapManager : NetworkBehaviour
     [Header("Curved Horizon Control")]
     public int safeFlatTilesCount = 2;
 
-    // ตัวแปรซ่อนสำหรับจัดการ State ของฉาก
+    // Internal state
     private List<GameObject> activeTiles = new List<GameObject>();
     private float spawnZ = 0f;
 
-    // Track สถานะการ Spawn
     private bool isSpawningStartTiles = true;
     private int currentStartTileIndex = 0;
     private int currentBiomeIndex = -1;
@@ -64,7 +71,7 @@ public class EndlessMapManager : NetworkBehaviour
 
     private IEnumerator WaitAndSpawnInitialMap()
     {
-        // 1. นั่งรอรถไฟเกิด
+        // Wait for the train to be spawned
         Blocks.Gameplay.Core.AutomatedNetworkTransform trainController = null;
         while (trainController == null)
         {
@@ -73,9 +80,9 @@ public class EndlessMapManager : NetworkBehaviour
         }
 
         trainTransform = trainController.transform;
-        Debug.Log("[Server] 🚂 MapManager หารถไฟเจอแล้ว! เริ่มปูรางตามระบบ Biome!");
+        Debug.Log("[MapManager] Train found! Starting biome-based track generation.");
 
-        // 2. เริ่มปูรางจำนวน numberOfTilesOnScreen ชิ้นแรก
+        // Spawn initial set of tiles
         for (int i = 0; i < numberOfTilesOnScreen; i++)
         {
             SpawnNextLogicTile();
@@ -86,7 +93,7 @@ public class EndlessMapManager : NetworkBehaviour
     {
         if (!IsServer || trainTransform == null || activeTiles.Count == 0) return;
 
-        // ถ้ารถไฟวิ่งเลยฉากแรกสุดไปไกลกว่าระยะ recycle ให้ทำลายฉากเก่าและสร้างฉากใหม่
+        // Recycle oldest tile when train passes it beyond the recycle distance
         if (trainTransform.position.z - activeTiles[0].transform.position.z > recycleDistance)
         {
             RecycleOldestTile();
@@ -94,14 +101,14 @@ public class EndlessMapManager : NetworkBehaviour
     }
 
     /// <summary>
-    /// ฟังก์ชันหลักที่ทำหน้าที่ตัดสินใจว่าจะ Spawn อะไร (Start, Biome หรือ Transition)
+    /// Core logic: decides what tile to spawn next (Start, Biome, or Transition).
     /// </summary>
     private void SpawnNextLogicTile()
     {
         GameObject prefabToSpawn = null;
         float lengthOfThisTile = standardTileLength;
 
-        // Logic 4: เช็คว่ากำลังปูฉากเริ่มต้นอยู่หรือไม่
+        // Phase 1: Start sequence tiles
         if (isSpawningStartTiles)
         {
             if (startTiles != null && currentStartTileIndex < startTiles.Length)
@@ -111,47 +118,45 @@ public class EndlessMapManager : NetworkBehaviour
             }
             else
             {
-                // หมดคิวฉาก Start แล้ว เข้าสู่ระบบ Biome
+                // Start sequence complete — enter biome system
                 isSpawningStartTiles = false;
                 PickRandomBiome();
                 prefabToSpawn = GetRandomTileFromCurrentBiome();
                 tilesLeftInCurrentBiome--;
             }
         }
-        // Logic 3: เช็คว่าถึงคิวของฉากเชื่อม (Transition) หรือไม่
+        // Phase 2: Transition tile between biomes
         else if (isTransitionPhase)
         {
             if (transitionTilePrefab != null)
             {
                 prefabToSpawn = transitionTilePrefab;
-                lengthOfThisTile = transitionTileLength; // ใช้ความยาวเฉพาะของตัวเชื่อม
+                lengthOfThisTile = transitionTileLength;
             }
 
             isTransitionPhase = false;
-            PickRandomBiome(); // พอวางทางเชื่อมเสร็จ ก็สุ่ม Biome ใหม่รอไว้เลย
+            PickRandomBiome();
         }
-        // Logic 1 & 2: ปูฉาก Biome ปกติ
+        // Phase 3: Normal biome tiles
         else
         {
             prefabToSpawn = GetRandomTileFromCurrentBiome();
             tilesLeftInCurrentBiome--;
 
-            // ถ้าปูฉาก Biome นี้ครบโควต้าแล้ว คิวต่อไปให้ปูฉากเชื่อม (Transition)
+            // Biome quota reached — next tile will be a transition
             if (tilesLeftInCurrentBiome <= 0)
             {
                 isTransitionPhase = true;
             }
         }
 
-        // ถ้าหา Prefab ไม่ได้ (ลืมตั้งค่า) ให้ข้ามไป
         if (prefabToSpawn == null) return;
 
-        // ทำการสร้างฉาก
         InstantiateAndSetupTile(prefabToSpawn, lengthOfThisTile);
     }
 
     /// <summary>
-    /// สุ่มเลือก Biome ใหม่ และสุ่มจำนวนฉากที่จะปู
+    /// Randomly selects a new biome and determines how many tiles to spawn.
     /// </summary>
     private void PickRandomBiome()
     {
@@ -160,14 +165,13 @@ public class EndlessMapManager : NetworkBehaviour
         currentBiomeIndex = Random.Range(0, biomes.Length);
         BiomeData currentBiome = biomes[currentBiomeIndex];
 
-        // สุ่มว่า Biome นี้จะยาวกี่ Tile
         tilesLeftInCurrentBiome = Random.Range(currentBiome.minTiles, currentBiome.maxTiles + 1);
 
-        Debug.Log($"[Map Manager] 🌲 เข้าสู่ Biome: {currentBiome.biomeName} (ความยาว {tilesLeftInCurrentBiome} ฉาก)");
+        Debug.Log($"[MapManager] Entering Biome: {currentBiome.biomeName} ({tilesLeftInCurrentBiome} tiles)");
     }
 
     /// <summary>
-    /// สุ่มเลือก Prefab ฉากจาก Biome ปัจจุบัน
+    /// Returns a random tile prefab from the current biome.
     /// </summary>
     private GameObject GetRandomTileFromCurrentBiome()
     {
@@ -181,14 +185,14 @@ public class EndlessMapManager : NetworkBehaviour
     }
 
     /// <summary>
-    /// เสกฉากลงในโลก และป้อน Waypoint ให้รถไฟ
+    /// Instantiates a tile, configures it (biome spawner, waypoints, curve), and tracks it.
     /// </summary>
     private void InstantiateAndSetupTile(GameObject prefab, float tileLength)
     {
         Vector3 spawnPosition = new Vector3(0, 0, spawnZ);
         GameObject tile = Instantiate(prefab, spawnPosition, Quaternion.identity);
 
-        // Inject current biome name into the tile's spawner logic
+        // Inject current biome name into the tile's loot spawner
         if (currentBiomeIndex >= 0 && currentBiomeIndex < biomes.Length)
         {
             var spawner = tile.GetComponent<BiomeBoxSpawner>();
@@ -202,7 +206,7 @@ public class EndlessMapManager : NetworkBehaviour
         NetworkObject netObj = tile.GetComponent<NetworkObject>();
         if (netObj != null) netObj.Spawn();
 
-        // ดึง Waypoint ของรางชิ้นใหม่ ไปต่อคิวให้รถไฟ
+        // Feed waypoints from the new tile to the train controller
         TileWaypoints tilePath = tile.GetComponent<TileWaypoints>();
         if (tilePath != null && trainTransform != null)
         {
@@ -213,7 +217,7 @@ public class EndlessMapManager : NetworkBehaviour
             }
         }
 
-        // สั่งการความโค้ง
+        // Configure curved horizon effect
         CurvedHorizonTile curveScript = tile.GetComponent<CurvedHorizonTile>();
         if (curveScript != null)
         {
@@ -221,29 +225,28 @@ public class EndlessMapManager : NetworkBehaviour
         }
 
         activeTiles.Add(tile);
-        spawnZ += tileLength; // ขยับจุด SpawnZ ไปข้างหน้าตามความยาวของฉากที่เพิ่งเสก
+        spawnZ += tileLength;
     }
 
     /// <summary>
-    /// ทำลายฉากเก่าทิ้ง แล้วเรียกฟังก์ชันปูฉากใหม่มาต่อท้าย
+    /// Destroys the oldest tile and spawns a new one at the end of the track.
     /// </summary>
     private void RecycleOldestTile()
     {
         GameObject oldTile = activeTiles[0];
         activeTiles.RemoveAt(0);
 
-        // Despawn และทำลายทิ้งเพื่อคืน RAM
+        // Despawn and destroy to free memory
         NetworkObject netObj = oldTile.GetComponent<NetworkObject>();
         if (netObj != null && netObj.IsSpawned)
         {
-            netObj.Despawn(true); // true = ให้ Destroy GameObject ด้วย
+            netObj.Despawn(true);
         }
         else
         {
             Destroy(oldTile);
         }
 
-        // สั่งสร้างฉากใหม่ไปต่อท้ายคิว
         SpawnNextLogicTile();
     }
 }

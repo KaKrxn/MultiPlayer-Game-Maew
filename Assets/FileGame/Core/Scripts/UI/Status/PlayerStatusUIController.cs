@@ -7,8 +7,8 @@ namespace FileGame.Core.UI
 {
     /// <summary>
     /// PEAK-Style HUD controller for the Stamina-Driven status bar.
-    /// v4: Added UV-tiling for debuff stripes to prevent stretching (Infinite Stretch),
-    /// fixed right-anchored positioning, ghost bar, and centered icons.
+    /// v3: Fixed positioning (debuffs right-aligned), ghost energy bar,
+    /// centered icons, and Inspector-assignable sprites.
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
     public class PlayerStatusUIController : MonoBehaviour
@@ -19,29 +19,64 @@ namespace FileGame.Core.UI
         public string painStatName = "Pain";
         public string weightStatName = "Weight";
         public string hungerStatName = "Hunger";
+        public string toxicStatName = "Toxic";
 
         [Header("Animation")]
+        [Tooltip("Speed of the smooth Lerp animation for bar width changes.")]
         public float animationSpeed = 4f;
 
         [Header("Custom Icons (Optional)")]
         public Texture2D painIconTexture;
         public Texture2D weightIconTexture;
         public Texture2D hungerIconTexture;
+        public Texture2D toxicIconTexture;
         public Texture2D boltIconTexture;
         public Texture2D debuffStripeTexture;
 
         private UIDocument document;
-        private VisualElement energyFill, energyGhostFill, painFill, weightFill, hungerFill, extraEnergyFill;
-        private VisualElement painIcon, weightIcon, hungerIcon, boltIcon;
+
+        // Fill elements
+        private VisualElement energyFill;
+        private VisualElement energyGhostFill;
+        private VisualElement painFill;
+        private VisualElement weightFill;
+        private VisualElement hungerFill;
+        private VisualElement toxicFill;
+        private VisualElement extraEnergyFill;
+
+        // Icons
+        private VisualElement painIcon;
+        private VisualElement weightIcon;
+        private VisualElement hungerIcon;
+        private VisualElement toxicIcon;
+        private VisualElement boltIcon;
+
+        // Track
         private VisualElement mainBarTrack;
 
-        private int mainEnergyHash, extraEnergyHash, painHash, weightHash, hungerHash;
-        private CoreStatsHandler localStats;
-        private float animEnergyRatio, animPainRatio, animWeightRatio, animHungerRatio, animExtraRatio;
-        private bool wasPainVisible, wasWeightVisible, wasHungerVisible;
+        // Hashes
+        private int mainEnergyHash;
+        private int extraEnergyHash;
+        private int painHash;
+        private int weightHash;
+        private int hungerHash;
+        private int toxicHash;
 
-        // Texture for tiling (cached from Resources or Inspector)
-        private Texture2D stripeTex;
+        private CoreStatsHandler localStats;
+
+        // Animated ratios
+        private float animEnergyRatio;
+        private float animPainRatio;
+        private float animWeightRatio;
+        private float animHungerRatio;
+        private float animToxicRatio;
+        private float animExtraRatio;
+
+        // Visual states
+        private bool wasPainVisible;
+        private bool wasWeightVisible;
+        private bool wasHungerVisible;
+        private bool wasToxicVisible;
 
         private void Start() => InitializeUI();
 
@@ -53,6 +88,7 @@ namespace FileGame.Core.UI
             painHash = Animator.StringToHash(painStatName);
             weightHash = Animator.StringToHash(weightStatName);
             hungerHash = Animator.StringToHash(hungerStatName);
+            toxicHash = Animator.StringToHash(toxicStatName);
 
             if (document?.rootVisualElement != null)
             {
@@ -62,71 +98,24 @@ namespace FileGame.Core.UI
                 painFill = root.Q<VisualElement>("pain-fill");
                 weightFill = root.Q<VisualElement>("weight-fill");
                 hungerFill = root.Q<VisualElement>("hunger-fill");
+                toxicFill = root.Q<VisualElement>("toxic-fill");
                 extraEnergyFill = root.Q<VisualElement>("extra-energy-fill");
 
                 painIcon = root.Q<VisualElement>("pain-icon");
                 weightIcon = root.Q<VisualElement>("weight-icon");
                 hungerIcon = root.Q<VisualElement>("hunger-icon");
+                toxicIcon = root.Q<VisualElement>("toxic-icon");
                 boltIcon = root.Q<VisualElement>("extra-icon-bolt");
 
                 mainBarTrack = root.Q<VisualElement>("main-bar-track");
 
-                // Setup UV-tiling for debuff bars
-                stripeTex = debuffStripeTexture != null ? debuffStripeTexture : Resources.Load<Texture2D>("UI/DebuffStripePattern");
-                
-                // We draw the stripes manually to ensure they tile perfectly without stretching
-                SetupTiledBackground(painFill);
-                SetupTiledBackground(weightFill);
-                SetupTiledBackground(hungerFill);
-
                 SetIconOpacity(painIcon, 0f);
                 SetIconOpacity(weightIcon, 0f);
                 SetIconOpacity(hungerIcon, 0f);
+                SetIconOpacity(toxicIcon, 0f);
 
                 ApplyCustomIcons();
             }
-        }
-
-        private void SetupTiledBackground(VisualElement e)
-        {
-            if (e == null) return;
-            // Register callback to draw custom tiled mesh
-            e.generateVisualContent += OnGenerateTiledBackground;
-            // Remove the default background-image to avoid overlapping
-            e.style.backgroundImage = null;
-        }
-
-        /// <summary>
-        /// Draws a tiled background for the debuff bars to prevent stretching.
-        /// This ensures the diagonal lines always stay the same size.
-        /// </summary>
-        private void OnGenerateTiledBackground(MeshGenerationContext mgc)
-        {
-            if (stripeTex == null) return;
-
-            var ve = mgc.visualElement;
-            var rect = ve.contentRect;
-            if (rect.width <= 0 || rect.height <= 0) return;
-
-            // Get the color from the USS (background-image-tint-color)
-            Color tint = ve.resolvedStyle.unityBackgroundImageTintColor;
-
-            // Calculate UVs for tiling. Texture should be 64x64 or similar.
-            // We want it to tile based on height to keep aspect ratio.
-            float uRepeat = rect.width / rect.height;
-
-            // Texture is passed directly to Allocate in UI Toolkit
-            var mesh = mgc.Allocate(4, 6, stripeTex);
-            
-            // Vertices
-            mesh.SetNextVertex(new Vertex { position = new Vector3(0, 0, 0), uv = new Vector2(0, 1), tint = tint });
-            mesh.SetNextVertex(new Vertex { position = new Vector3(rect.width, 0, 0), uv = new Vector2(uRepeat, 1), tint = tint });
-            mesh.SetNextVertex(new Vertex { position = new Vector3(rect.width, rect.height, 0), uv = new Vector2(uRepeat, 0), tint = tint });
-            mesh.SetNextVertex(new Vertex { position = new Vector3(0, rect.height, 0), uv = new Vector2(0, 0), tint = tint });
-
-            // Triangles
-            mesh.SetNextIndex(0); mesh.SetNextIndex(1); mesh.SetNextIndex(2);
-            mesh.SetNextIndex(2); mesh.SetNextIndex(3); mesh.SetNextIndex(0);
         }
 
         private void ApplyCustomIcons()
@@ -134,17 +123,18 @@ namespace FileGame.Core.UI
             if (painIconTexture != null && painIcon != null) painIcon.style.backgroundImage = new StyleBackground(painIconTexture);
             if (weightIconTexture != null && weightIcon != null) weightIcon.style.backgroundImage = new StyleBackground(weightIconTexture);
             if (hungerIconTexture != null && hungerIcon != null) hungerIcon.style.backgroundImage = new StyleBackground(hungerIconTexture);
+            if (toxicIconTexture != null && toxicIcon != null) toxicIcon.style.backgroundImage = new StyleBackground(toxicIconTexture);
             if (boltIconTexture != null && boltIcon != null) boltIcon.style.backgroundImage = new StyleBackground(boltIconTexture);
-            
-            // If stripe texture changed via Inspector, trigger repaint
             if (debuffStripeTexture != null)
             {
-                stripeTex = debuffStripeTexture;
-                painFill?.MarkDirtyRepaint();
-                weightFill?.MarkDirtyRepaint();
-                hungerFill?.MarkDirtyRepaint();
+                ApplyStripe(painFill);
+                ApplyStripe(weightFill);
+                ApplyStripe(hungerFill);
+                ApplyStripe(toxicFill);
             }
         }
+
+        private void ApplyStripe(VisualElement e) { if (e != null) e.style.backgroundImage = new StyleBackground(debuffStripeTexture); }
 
         private void Update()
         {
@@ -160,32 +150,45 @@ namespace FileGame.Core.UI
             float energyMax = localStats.GetMaxValue(mainEnergyHash);
             if (energyMax <= 0) return;
 
-            float tEnergy = Mathf.Clamp01(localStats.GetCurrentValue(mainEnergyHash) / energyMax);
-            float tPain = Mathf.Clamp01(localStats.GetCurrentValue(painHash) / localStats.GetMaxValue(painHash));
-            float tWeight = Mathf.Clamp01(localStats.GetCurrentValue(weightHash) / localStats.GetMaxValue(weightHash));
-            float tHunger = Mathf.Clamp01(localStats.GetCurrentValue(hungerHash) / localStats.GetMaxValue(hungerHash));
-            float tExtra = Mathf.Clamp01(localStats.GetCurrentValue(extraEnergyHash) / localStats.GetMaxValue(extraEnergyHash));
+            // Ratios (0-1) using silent retrieval to avoid console spam for missing optional stats
+            float tEnergy = GetStatRatio(mainEnergyHash);
+            float tPain = GetStatRatio(painHash);
+            float tWeight = GetStatRatio(weightHash);
+            float tHunger = GetStatRatio(hungerHash);
+            float tToxic = GetStatRatio(toxicHash);
+            float tExtra = GetStatRatio(extraEnergyHash);
 
             float dt = Time.deltaTime * animationSpeed;
             animEnergyRatio = SnapIfClose(Mathf.Lerp(animEnergyRatio, tEnergy, dt), tEnergy);
             animPainRatio = SnapIfClose(Mathf.Lerp(animPainRatio, tPain, dt), tPain);
             animWeightRatio = SnapIfClose(Mathf.Lerp(animWeightRatio, tWeight, dt), tWeight);
             animHungerRatio = SnapIfClose(Mathf.Lerp(animHungerRatio, tHunger, dt), tHunger);
+            animToxicRatio = SnapIfClose(Mathf.Lerp(animToxicRatio, tToxic, dt), tToxic);
             animExtraRatio = SnapIfClose(Mathf.Lerp(animExtraRatio, tExtra, dt), tExtra);
 
-            float totalDebuff = animPainRatio + animWeightRatio + animHungerRatio;
-            UpdateBar(energyGhostFill, Mathf.Clamp01(1f - totalDebuff), 0);
+            // 1. Ghost Bar (faint green) fills total available capacity (100% - debuffs)
+            float totalDebuff = animPainRatio + animWeightRatio + animHungerRatio + animToxicRatio;
+            float capacityRatio = Mathf.Clamp01(1f - totalDebuff);
+            UpdateBar(energyGhostFill, capacityRatio, 0);
+
+            // 2. Main Energy fills actual energy from left
             UpdateBar(energyFill, animEnergyRatio, 0);
 
+            // 3. Debuffs anchor to the right
+            // hunger is rightmost, then weight, then pain, then toxic
             UpdateBar(hungerFill, animHungerRatio, 1f - animHungerRatio);
             UpdateBar(weightFill, animWeightRatio, 1f - animHungerRatio - animWeightRatio);
-            UpdateBar(painFill, animPainRatio, 1f - totalDebuff);
+            UpdateBar(painFill, animPainRatio, 1f - animHungerRatio - animWeightRatio - animPainRatio);
+            UpdateBar(toxicFill, animToxicRatio, 1f - totalDebuff);
 
+            // 4. Extra energy
             if (extraEnergyFill != null) UpdateBarWidth(extraEnergyFill, animExtraRatio);
 
+            // 5. Icons centering & alpha
             UpdateIconVisibility(painIcon, animPainRatio, ref wasPainVisible);
             UpdateIconVisibility(weightIcon, animWeightRatio, ref wasWeightVisible);
             UpdateIconVisibility(hungerIcon, animHungerRatio, ref wasHungerVisible);
+            UpdateIconVisibility(toxicIcon, animToxicRatio, ref wasToxicVisible);
             PositionIcons();
         }
 
@@ -194,13 +197,21 @@ namespace FileGame.Core.UI
             if (mainBarTrack == null) return;
             float tw = mainBarTrack.resolvedStyle.width;
             if (tw <= 0) return;
-            float hw = 14f, padding = 4f;
+
+            float hw = 14f; // half icon width
+            float padding = 4f; // track padding offset
+
+            float totalDebuff = animHungerRatio + animWeightRatio + animPainRatio + animToxicRatio;
+
+            // Centers are middle of each bar's range
             if (animHungerRatio > 0.001f) PositionIcon(hungerIcon, (1f - animHungerRatio * 0.5f) * tw - hw + padding);
             if (animWeightRatio > 0.001f) PositionIcon(weightIcon, (1f - animHungerRatio - animWeightRatio * 0.5f) * tw - hw + padding);
             if (animPainRatio > 0.001f) PositionIcon(painIcon, (1f - animHungerRatio - animWeightRatio - animPainRatio * 0.5f) * tw - hw + padding);
+            if (animToxicRatio > 0.001f) PositionIcon(toxicIcon, (1f - totalDebuff + animToxicRatio * 0.5f) * tw - hw + padding);
         }
 
         private void PositionIcon(VisualElement i, float x) { if (i != null) i.style.left = Mathf.Max(0f, x); }
+
         private void UpdateIconVisibility(VisualElement i, float r, ref bool v)
         {
             if (i == null) return;
@@ -208,6 +219,7 @@ namespace FileGame.Core.UI
             if (isV && !v) { SetIconOpacity(i, 1f); v = true; }
             else if (!isV && v) { SetIconOpacity(i, 0f); v = false; }
         }
+
         private void SetIconOpacity(VisualElement i, float o) { if (i != null) i.style.opacity = o; }
 
         private void UpdateBar(VisualElement e, float r, float leftRatio)
@@ -219,10 +231,10 @@ namespace FileGame.Core.UI
                 e.style.display = DisplayStyle.Flex;
                 e.style.width = Length.Percent(r * 100f);
                 e.style.left = Length.Percent(leftRatio * 100f);
+                
+                // Add 2px gap between segments. Absolute positioning still obeys margins.
                 bool isDebuff = e != energyFill && e != energyGhostFill;
                 e.style.marginLeft = (isDebuff && leftRatio > 0.001f) ? 2f : 0f;
-                // Important: Trigger repaint if width changed to update tiling UVs
-                e.MarkDirtyRepaint();
             }
         }
 
@@ -231,6 +243,14 @@ namespace FileGame.Core.UI
             if (e == null) return;
             if (r <= 0.001f) e.style.display = DisplayStyle.None;
             else { e.style.display = DisplayStyle.Flex; e.style.width = Length.Percent(r * 100f); }
+        }
+
+        private float GetStatRatio(int statHash)
+        {
+            if (localStats == null) return 0f;
+            float max = localStats.GetMaxValue(statHash, false);
+            if (max <= 0f) return 0f;
+            return Mathf.Clamp01(localStats.GetCurrentValue(statHash, false) / max);
         }
 
         private float SnapIfClose(float c, float t) => Mathf.Abs(c - t) < 0.002f ? t : c;

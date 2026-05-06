@@ -1,6 +1,6 @@
-using UnityEngine;
-using Unity.Netcode;
 using System.Collections.Generic;
+using Unity.Netcode;
+using UnityEngine;
 
 namespace Blocks.Gameplay.Core
 {
@@ -36,12 +36,19 @@ namespace Blocks.Gameplay.Core
         public bool IsEnabled { get; set; } = true;
 
         public event System.Action<IInteractable> OnFocusChanged;
+        public event System.Action<IInteractable, float, bool> OnHoldStateChanged;
+
+        public float CurrentHoldProgress => m_HoldTimer;
+        public bool IsHoldingCurrentInteractable => m_CurrentHoldInteractable != null;
 
         private CorePlayerManager m_PlayerManager;
         private Camera m_MainCamera;
         private IInteractable m_CurrentFocusedInteractable;
         private float m_CooldownTimer;
         private readonly Collider[] m_ProximityColliders = new Collider[20];
+        private IHoldInteractable m_CurrentHoldInteractable;
+        private float m_HoldTimer;
+        private bool m_WaitingForHoldRelease;
 
         #endregion
 
@@ -123,6 +130,7 @@ namespace Blocks.Gameplay.Core
             }
 
             FindBestInteractable();
+            UpdateHoldInteraction();
         }
 
         /// <summary>
@@ -149,6 +157,7 @@ namespace Blocks.Gameplay.Core
 
         private void ClearFocus()
         {
+            CancelHoldInteraction();
             if (m_CurrentFocusedInteractable != null)
             {
                 m_CurrentFocusedInteractable = null;
@@ -183,7 +192,7 @@ namespace Blocks.Gameplay.Core
                 // Visual Debug Ray for the Editor
                 Debug.DrawLine(m_MainCamera.transform.position, hit.point, Color.green);
 
-                if (hit.collider.TryGetComponent<IInteractable>(out var raycastTarget) && !IsPhysicsBased(raycastTarget.TriggerMode))
+                if (hit.collider.GetComponentInParent<IInteractable>() is IInteractable raycastTarget && !IsPhysicsBased(raycastTarget.TriggerMode))
                 {
                     interactables.Add(raycastTarget);
                 }
@@ -202,7 +211,7 @@ namespace Blocks.Gameplay.Core
             for (int i = 0; i < hitCount; i++)
             {
                 var col = m_ProximityColliders[i];
-                if (col.TryGetComponent<IInteractable>(out var proximityTarget) &&
+                if (col.GetComponentInParent<IInteractable>() is IInteractable proximityTarget &&
                     !interactables.Contains(proximityTarget) &&
                     !IsPhysicsBased(proximityTarget.TriggerMode))
                 {
@@ -229,9 +238,11 @@ namespace Blocks.Gameplay.Core
 
             if (bestTarget != m_CurrentFocusedInteractable)
             {
+                CancelHoldInteraction();
                 // Debug.Log($"[InteractionAddon] Focus Changed: {(bestTarget != null ? bestTarget.InteractionPromptText : "None")}");
                 m_CurrentFocusedInteractable = bestTarget;
                 OnFocusChanged?.Invoke(m_CurrentFocusedInteractable);
+                NotifyHoldStateChanged(0f, false);
 
                 // Automatically interact when entering focus for OnFocusEnter trigger mode
                 if (m_CurrentFocusedInteractable != null && m_CurrentFocusedInteractable.TriggerMode == InteractionTriggerMode.OnFocusEnter)
@@ -247,6 +258,7 @@ namespace Blocks.Gameplay.Core
         private void TryInteract()
         {
             if (!IsEnabled || m_CooldownTimer > 0 || m_CurrentFocusedInteractable == null) return;
+            if (m_CurrentFocusedInteractable is IHoldInteractable) return;
 
             if (m_CurrentFocusedInteractable.TriggerMode == InteractionTriggerMode.OnButtonPress &&
                 m_CurrentFocusedInteractable.CanInteract(gameObject))
@@ -254,6 +266,76 @@ namespace Blocks.Gameplay.Core
                 m_CurrentFocusedInteractable.Interact(gameObject);
                 m_CooldownTimer = interactionCooldown;
             }
+        }
+
+        private void UpdateHoldInteraction()
+        {
+            bool isInteractHeld = Input.GetKey(KeyCode.E);
+
+            if (!isInteractHeld)
+            {
+                m_WaitingForHoldRelease = false;
+            }
+
+            if (m_WaitingForHoldRelease)
+            {
+                return;
+            }
+
+            IHoldInteractable holdInteractable = m_CurrentFocusedInteractable as IHoldInteractable;
+            if (holdInteractable == null)
+            {
+                CancelHoldInteraction();
+                return;
+            }
+
+            if (!isInteractHeld || !holdInteractable.CanHoldInteract(gameObject))
+            {
+                CancelHoldInteraction();
+                return;
+            }
+
+            if (m_CurrentHoldInteractable != holdInteractable)
+            {
+                CancelHoldInteraction();
+                m_CurrentHoldInteractable = holdInteractable;
+                m_HoldTimer = 0f;
+                m_CurrentHoldInteractable.OnHoldInteractStarted(gameObject);
+                NotifyHoldStateChanged(0f, true);
+            }
+
+            m_HoldTimer += Time.deltaTime;
+            float holdDuration = Mathf.Max(0.01f, holdInteractable.HoldDuration);
+            float progress = Mathf.Clamp01(m_HoldTimer / holdDuration);
+            holdInteractable.OnHoldInteractProgress(gameObject, progress);
+            NotifyHoldStateChanged(progress, true);
+
+            if (progress >= 1f)
+            {
+                holdInteractable.OnHoldInteractCompleted(gameObject);
+                m_CooldownTimer = interactionCooldown;
+                m_HoldTimer = 0f;
+                m_CurrentHoldInteractable = null;
+                m_WaitingForHoldRelease = true;
+                NotifyHoldStateChanged(1f, false);
+            }
+        }
+
+        private void CancelHoldInteraction()
+        {
+            if (m_CurrentHoldInteractable != null)
+            {
+                m_CurrentHoldInteractable.OnHoldInteractCanceled(gameObject);
+            }
+
+            m_CurrentHoldInteractable = null;
+            m_HoldTimer = 0f;
+            NotifyHoldStateChanged(0f, false);
+        }
+
+        private void NotifyHoldStateChanged(float progress, bool isHolding)
+        {
+            OnHoldStateChanged?.Invoke(m_CurrentFocusedInteractable, progress, isHolding);
         }
 
         #endregion

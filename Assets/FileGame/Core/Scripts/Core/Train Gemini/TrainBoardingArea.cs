@@ -1,25 +1,30 @@
 using UnityEngine;
 using Unity.Netcode;
 
+/// <summary>
+/// Server-authoritative train boarding area.
+/// When a player enters the trigger, they are parented to the train anchor.
+/// When they leave, the parent relationship is removed.
+/// </summary>
 public class TrainBoardingArea : NetworkBehaviour
 {
-    [Tooltip("ลาก PlayerAnchor ที่อยู่ข้างใน TrainRoot มาใส่ช่องนี้")]
+    [Tooltip("Drag the PlayerAnchor child transform of the TrainRoot here")]
     public Transform playerAnchor;
 
     private void OnTriggerEnter(Collider other)
     {
-        // ให้ Server เป็นคนจับ Parent
+        // Only server manages parent relationships
         if (!IsServer) return;
 
         if (other.CompareTag("Player"))
         {
             NetworkObject playerNetObj = other.GetComponent<NetworkObject>();
 
-            // จับเป็นลูกของ Anchor ที่มี Scale 1,1,1 เท่านั้น! (ป้องกัน CharacterController พัง)
+            // Parent to the anchor (which has scale 1,1,1 to prevent CharacterController issues)
             if (playerNetObj != null && playerAnchor != null)
             {
                 playerNetObj.TrySetParent(playerAnchor, true);
-                Debug.Log($"[Server] ผู้เล่น {playerNetObj.OwnerClientId} เกาะรถไฟที่ PlayerAnchor แล้ว!");
+                Debug.Log($"[TrainBoarding] Player {playerNetObj.OwnerClientId} boarded the train.");
             }
         }
     }
@@ -33,9 +38,8 @@ public class TrainBoardingArea : NetworkBehaviour
             NetworkObject playerNetObj = other.GetComponent<NetworkObject>();
             if (playerNetObj != null && playerNetObj.transform.parent == playerAnchor)
             {
-                // ปลดออกจากการเป็นลูก
                 playerNetObj.TryRemoveParent();
-                Debug.Log($"[Server] ผู้เล่น {playerNetObj.OwnerClientId} ลงจากรถไฟแล้ว!");
+                Debug.Log($"[TrainBoarding] Player {playerNetObj.OwnerClientId} left the train.");
             }
         }
     }

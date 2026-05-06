@@ -147,7 +147,7 @@ namespace Blocks.Gameplay.Core
         /// <param name="lookInput">The 2D vector from the input device.</param>
         public void SetLookInput(Vector2 lookInput)
         {
-            if (!IsOwner || !enableLookInput) return;
+            if (!IsOwner || !enableLookInput || Cursor.lockState != CursorLockMode.Locked) return;
 
             m_CurrentHorizontalLookAngle += lookInput.x * m_LookSensitivity;
 

@@ -14,9 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LootTableData
   tableName: Test
   possibleLoot:
-  - itemName: Fuel
-    itemType: 3
-    itemPrefab: {fileID: 1056250608077221738, guid: 006f1194f9220ac489a47727c631e3ec, type: 3}
-    minDurability: 20
-    maxDurability: 100
-    dropWeight: 100
+  - itemData: {fileID: 11400000, guid: e33875acfedf64747af54a5aa0e31b42, type: 2}
+    dropWeight: 30
+  - itemData: {fileID: 11400000, guid: defcd7764de4ad34b82ca099a7fda7e6, type: 2}
+    dropWeight: 30
+  - itemData: {fileID: 11400000, guid: 2f1f302bbea44dbd8d052bb0b43d07da, type: 2}
+    dropWeight: 40

@@ -1,6 +1,7 @@
 using UnityEngine;
 using Unity.Netcode;
 using System.Collections.Generic;
+using Blocks.Gameplay.Core;
 
 public class BiomeBoxSpawner : NetworkBehaviour
 {

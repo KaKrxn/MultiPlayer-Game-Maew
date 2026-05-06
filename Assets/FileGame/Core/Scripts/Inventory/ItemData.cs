@@ -1,5 +1,12 @@
 using UnityEngine;
 
+[System.Serializable]
+public enum ItemPromptDisplayType
+{
+    Generic,
+    ScrapMetal
+}
+
 [CreateAssetMenu(fileName = "NewItemData", menuName = "Inventory/ItemData")]
 public class ItemData : ScriptableObject
 {
@@ -8,9 +15,15 @@ public class ItemData : ScriptableObject
     public Sprite itemPicture;
     [TextArea(2, 4)]
     public string description;
+    public ItemType itemType = ItemType.Generic;
 
     [Header("Inventory Settings")]
     public int maxStack = 99;
+    public bool isConsumable = false;
+    public bool usesAmountValue = false;
+
+    [Header("Prompt UI")]
+    public ItemPromptDisplayType promptDisplayType = ItemPromptDisplayType.Generic;
 
     [Header("World Representation")]
     [Tooltip("The actual Prefab dropped into the world")]

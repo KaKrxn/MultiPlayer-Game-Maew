@@ -2,30 +2,39 @@ using Unity.Netcode;
 using UnityEngine;
 using Unity.Cinemachine;
 
+/// <summary>
+/// Manages player death, spectator mode, and revival logic.
+/// Death and revival are server-authoritative to prevent client exploitation.
+/// </summary>
 public class PlayerAction : NetworkBehaviour
 {
     [Header("Settings")]
-    public float reviveDistance = 3f;
+    public float reviveDistance = FileGame.Core.GameConstants.DefaultReviveDistance;
     public string graveyardTag = "Graveyard";
 
     [Header("Camera Settings")]
     public Transform cameraTarget; 
 
-    // ตัวแปรสถานะ
+    // Server-authoritative death state (prevents client-side death toggle exploits)
     public NetworkVariable<bool> isDead = new NetworkVariable<bool>(false, 
         NetworkVariableReadPermission.Everyone, 
-        NetworkVariableWritePermission.Owner);
+        NetworkVariableWritePermission.Server);
 
-    // 🛑 [เพิ่มใหม่] ตัวแปรสำหรับซิงค์พิกัดที่ถูกต้องหลังจากการวาร์ป
+    // Server-authoritative body position for accurate revive distance checks
     public NetworkVariable<Vector3> actualBodyPosition = new NetworkVariable<Vector3>(Vector3.zero, 
         NetworkVariableReadPermission.Everyone, 
-        NetworkVariableWritePermission.Owner);
+        NetworkVariableWritePermission.Server);
 
     private CinemachineCamera _vCam;
     private Transform _myOriginalTarget;
 
+    // Cache player list to avoid FindObjectsByType every frame
+    private static readonly System.Collections.Generic.List<PlayerAction> _allPlayers = new();
+
     public override void OnNetworkSpawn()
     {
+        _allPlayers.Add(this);
+
         if (IsOwner)
         {
             _vCam = GameObject.FindAnyObjectByType<CinemachineCamera>();
@@ -41,6 +50,7 @@ public class PlayerAction : NetworkBehaviour
 
     public override void OnNetworkDespawn()
     {
+        _allPlayers.Remove(this);
         isDead.OnValueChanged -= OnDeathStateChanged;
     }
 
@@ -48,14 +58,14 @@ public class PlayerAction : NetworkBehaviour
     {
         if (!IsOwner) return;
 
-        if (newValue == true)
+        if (newValue)
         {
-            Debug.Log("💀 [Local] You died! Spectating...");
+            Debug.Log("[PlayerAction] You died! Spectating...");
             StartSpectating();
         }
         else
         {
-            Debug.Log("😇 [Local] You revived!");
+            Debug.Log("[PlayerAction] You revived!");
             StopSpectating();
         }
     }
@@ -65,8 +75,8 @@ public class PlayerAction : NetworkBehaviour
         if (_vCam == null) _vCam = GameObject.FindAnyObjectByType<CinemachineCamera>();
         if (_vCam == null) return;
 
-        PlayerAction[] allPlayers = FindObjectsByType<PlayerAction>(FindObjectsSortMode.None);
-        foreach (var player in allPlayers)
+        // Use cached player list instead of FindObjectsByType
+        foreach (var player in _allPlayers)
         {
             if (player != this && !player.isDead.Value)
             {
@@ -87,51 +97,56 @@ public class PlayerAction : NetworkBehaviour
         }
     }
 
+    /// <summary>
+    /// Called by local owner to request death. Server handles the actual state change.
+    /// </summary>
     public void LocalDie()
     {
         if (!IsOwner || isDead.Value) return;
 
-        isDead.Value = true;
-        
         GameObject graveyard = GameObject.FindGameObjectWithTag(graveyardTag);
-        if (graveyard != null)
-        {
-            Vector3 gravePos = graveyard.transform.position;
-            
-            // 🛑 1. อัปเดตพิกัดว่า "ศพฉันอยู่ที่สุสานนะ" ส่งให้ทุกคนใน Network รู้
-            actualBodyPosition.Value = gravePos;
-            
-            // 🛑 2. สั่งวาร์ปผ่าน Server เพื่อให้ NetworkTransform ไม่ดึงกลับไปที่เดิม
-            TeleportServerRpc(gravePos);
-        }
-        else
-        {
-            actualBodyPosition.Value = transform.position;
-        }
+        Vector3 gravePos = graveyard != null ? graveyard.transform.position : transform.position;
+
+        // Request server to set death state and teleport
+        RequestDieServerRpc(gravePos);
     }
 
-    // --- ระบบชุบชีวิต ---
+    [ServerRpc]
+    private void RequestDieServerRpc(Vector3 graveyardPosition)
+    {
+        if (isDead.Value) return;
+
+        isDead.Value = true;
+        actualBodyPosition.Value = graveyardPosition;
+
+        // Teleport player to graveyard on all clients
+        TeleportClientRpc(graveyardPosition);
+    }
+
+    /// <summary>
+    /// Called by a living player to revive a nearby dead player.
+    /// </summary>
     public void LocalRevive()
     {
-        if (!IsOwner || isDead.Value) return; 
+        if (!IsOwner || isDead.Value) return;
 
-        PlayerAction[] allPlayers = FindObjectsByType<PlayerAction>(FindObjectsSortMode.None);
-        
-        foreach (var targetPlayer in allPlayers)
+        // Use cached player list instead of FindObjectsByType
+        foreach (var targetPlayer in _allPlayers)
         {
             if (targetPlayer != this && targetPlayer.isDead.Value)
             {
-                // 🛑 ใช้ `actualBodyPosition` ที่อัปเดตเป็นตำแหน่งสุสานแล้วมาคำนวณ
                 Vector2 myPos = new Vector2(transform.position.x, transform.position.z);
-                Vector2 targetPos = new Vector2(targetPlayer.actualBodyPosition.Value.x, targetPlayer.actualBodyPosition.Value.z);
+                Vector2 targetPos = new Vector2(
+                    targetPlayer.actualBodyPosition.Value.x, 
+                    targetPlayer.actualBodyPosition.Value.z);
                 
                 float distance = Vector2.Distance(myPos, targetPos);
                 
-                Debug.Log($"📏 [Check] ห่างจาก {targetPlayer.gameObject.name}: {distance:F2} ม. (พิกัดใน Network: {targetPlayer.actualBodyPosition.Value})");
+                Debug.Log($"[PlayerAction] Distance to {targetPlayer.gameObject.name}: {distance:F2}m (Network pos: {targetPlayer.actualBodyPosition.Value})");
 
                 if (distance <= reviveDistance)
                 {
-                    Debug.Log("✨ [Success] อยู่ในระยะชุบ! ส่งคำสั่งไปที่ Server");
+                    Debug.Log("[PlayerAction] In revive range! Sending request to server.");
                     targetPlayer.RequestReviveServerRpc();
                     return;
                 }
@@ -142,22 +157,10 @@ public class PlayerAction : NetworkBehaviour
     [ServerRpc(RequireOwnership = false)]
     public void RequestReviveServerRpc()
     {
-        ReceiveReviveClientRpc();
-    }
+        if (!isDead.Value) return;
 
-    [ClientRpc]
-    private void ReceiveReviveClientRpc()
-    {
-        if (IsOwner) isDead.Value = false;
-    }
-
-    // -------------------------------------------------------------------
-    // 🛑 ระบบวาร์ปฉบับ Multiplayer (บังคับวาร์ปทุกเครื่องป้องกันภาพลวงตา)
-    // -------------------------------------------------------------------
-    [ServerRpc(RequireOwnership = false)]
-    private void TeleportServerRpc(Vector3 targetPos)
-    {
-        TeleportClientRpc(targetPos);
+        isDead.Value = false;
+        Debug.Log($"[PlayerAction] Server revived player {OwnerClientId}.");
     }
 
     [ClientRpc]
@@ -170,6 +173,6 @@ public class PlayerAction : NetworkBehaviour
         
         if (cc != null) cc.enabled = true;
         
-        Debug.Log($"🚀 [Warp] อัปเดตพิกัดโมเดลสำเร็จไปที่: {targetPos}");
+        Debug.Log($"[PlayerAction] Teleported to: {targetPos}");
     }
 }

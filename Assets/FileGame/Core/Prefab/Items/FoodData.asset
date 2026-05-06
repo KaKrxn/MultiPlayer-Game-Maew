@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 69560e2e796fd8c4d85501eec6216774, type: 3}
+  m_Name: FoodData
+  m_EditorClassIdentifier: Assembly-CSharp::ItemData
+  itemName: Food
+  itemPicture: {fileID: 21300004, guid: 215687feeab0b7445b4a1cd86c82c2e1, type: 3}
+  description: 
+  itemType: 3
+  maxStack: 1
+  isConsumable: 1
+  usesAmountValue: 0
+  promptDisplayType: 0
+  dropPrefab: {fileID: 1056250608077221738, guid: 70d7291b50d8ac84e855b8b27a9ef14b, type: 3}

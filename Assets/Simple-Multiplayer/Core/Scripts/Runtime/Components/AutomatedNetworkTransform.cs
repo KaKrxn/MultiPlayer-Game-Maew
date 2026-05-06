@@ -110,6 +110,11 @@ namespace Blocks.Gameplay.Core
         private float m_CurrentSpeed = 0f;
         private readonly NetworkVariable<bool> m_IsTrainMoving = new NetworkVariable<bool>(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
         public bool IsMoving => m_IsTrainMoving.Value;
+        public float CurrentTrainSpeed => m_CurrentSpeed;
+        public float MaxTrainSpeed => moveSpeed;
+        public float TrainAcceleration => trainAcceleration;
+        public float TrainDeceleration => trainDeceleration;
+        public bool IsTrainStopped => !m_IsTrainMoving.Value && m_CurrentSpeed <= 0.05f;
         private HashSet<Transform> m_RegisteredRails = new HashSet<Transform>(); // ไว้กันแอดรางซ้ำ
 
         // Networked state variables.
@@ -268,6 +273,14 @@ namespace Blocks.Gameplay.Core
         {
             if (!CanCommitToTransform) return;
             m_IsTrainMoving.Value = startMoving;
+        }
+
+        public void ConfigureEndlessTrainStats(float maxSpeed, float brakeDeceleration)
+        {
+            if (!CanCommitToTransform) return;
+
+            moveSpeed = Mathf.Max(0f, maxSpeed);
+            trainDeceleration = Mathf.Max(0.01f, brakeDeceleration);
         }
 
         [Rpc(SendTo.Authority)]

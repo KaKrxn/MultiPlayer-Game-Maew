@@ -2,6 +2,14 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
 
+public enum ItemSizeRarity
+{
+    Small,
+    Medium,
+    Big,
+    SuperHuge
+}
+
 public static class WeightedRandomUtility
 {
     /// <summary>
@@ -29,34 +37,50 @@ public static class WeightedRandomUtility
         return items[items.Count - 1]; // Fallback
     }
 
-    /// <summary>
-    /// Calculates a random durability for an item data.
-    /// </summary>
-    public static int CalculateDurability(LootItemData data)
+    public static ItemSizeRarity RollSizeRarity()
     {
-        if (data == null) return 0;
-
-        int minDurability = Mathf.Min(data.minDurability, data.maxDurability);
-        int maxDurability = Mathf.Max(data.minDurability, data.maxDurability);
-        float t = Mathf.Pow(Random.value, 1.8f);
-        float value = Mathf.Lerp(minDurability, maxDurability, t);
-
-        return Mathf.RoundToInt(Mathf.Clamp(value, minDurability, maxDurability));
+        float roll = Random.value;
+        if (roll < 0.60f) return ItemSizeRarity.Small;       // 60%
+        if (roll < 0.85f) return ItemSizeRarity.Medium;      // 25%
+        if (roll < 0.95f) return ItemSizeRarity.Big;         // 10%
+        return ItemSizeRarity.SuperHuge;                     // 5%
     }
 
-    /// <summary>
-    /// Calculates a random weight for an item data, biased toward heavier rolls.
-    /// </summary>
-    public static float CalculateWeight(LootItemData data)
+    public static int CalculateDurability(ItemSizeRarity rarity)
     {
-        if (data == null) return 0f;
+        return rarity switch
+        {
+            ItemSizeRarity.Small => Random.Range(10, 41),
+            ItemSizeRarity.Medium => Random.Range(40, 71),
+            ItemSizeRarity.Big => Random.Range(70, 91),
+            ItemSizeRarity.SuperHuge => Random.Range(90, 101),
+            _ => 100
+        };
+    }
 
-        float minWeightKg = Mathf.Min(data.minWeightKg, data.maxWeightKg);
-        float maxWeightKg = Mathf.Max(data.minWeightKg, data.maxWeightKg);
-        float t = 1f - Mathf.Pow(Random.value, 2.4f);
-        float value = Mathf.Lerp(minWeightKg, maxWeightKg, t);
-
-        return RoundWeight(Mathf.Clamp(value, minWeightKg, maxWeightKg));
+    public static float CalculateWeight(ItemSizeRarity rarity)
+    {
+        float weight = rarity switch
+        {
+            ItemSizeRarity.Small => Random.Range(0.1f, 0.5f),
+            ItemSizeRarity.Medium => Random.Range(0.5f, 1.5f),
+            ItemSizeRarity.Big => Random.Range(1.5f, 3.0f),
+            ItemSizeRarity.SuperHuge => Random.Range(3.0f, 5.0f),
+            _ => 1.0f
+        };
+        return RoundWeight(weight);
+    }
+    
+    public static float GetScaleMultiplier(ItemSizeRarity rarity)
+    {
+        return rarity switch
+        {
+            ItemSizeRarity.Small => 1.0f,
+            ItemSizeRarity.Medium => 1.5f,
+            ItemSizeRarity.Big => 2.0f,
+            ItemSizeRarity.SuperHuge => 3.0f,
+            _ => 1.0f
+        };
     }
 
     public static float RoundWeight(float weightKg)

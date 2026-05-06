@@ -1,11 +1,16 @@
 using UnityEngine;
 using Unity.Netcode;
+using FileGame.Core;
 
+/// <summary>
+/// Server-side trigger that absorbs dropped fuel items and adds fuel to the train.
+/// Fuel amount is based on item durability scaled by the base refill amount.
+/// </summary>
 public class FuelReceiverTrigger : NetworkBehaviour
 {
     public TrainFuelSystem fuelSystem;
     public string targetFuelItemName = "Fuel";
-    public float fuelRefillAmount = 25f;
+    public float fuelRefillAmount = GameConstants.TrainFuelRefillBase;
 
     private void OnTriggerEnter(Collider other)
     {
@@ -23,8 +28,8 @@ public class FuelReceiverTrigger : NetworkBehaviour
             float fuelToAdd = fuelRefillAmount * durabilityRatio;
             fuelSystem.AddFuel(fuelToAdd);
             
-            // Trigger UI on all clients
-            ShowFuelNotificationClientRpc(droppedItem.Durability);
+            // Notify all clients to show fuel added notification
+            ShowFuelNotificationClientRpc(fuelToAdd);
         }
 
         NetworkObject fuelNetObj = other.GetComponent<NetworkObject>();
@@ -34,16 +39,14 @@ public class FuelReceiverTrigger : NetworkBehaviour
         }
         else
         {
-            // Fallback for non-networked objects (shouldn't happen in Netcode usually but keep for safety)
             Destroy(other.gameObject);
         }
     }
 
     [ClientRpc]
-    private void ShowFuelNotificationClientRpc(float durability)
+    private void ShowFuelNotificationClientRpc(float fuelAmount)
     {
-        // Successful received Fuel Message with Yellow animated UI Text
-        string message = $"+{durability:0}%!";
+        string message = $"+{fuelAmount:0}";
         FuelNotificationUI.Create(transform.position + Vector3.up * 1f, message);
     }
 }

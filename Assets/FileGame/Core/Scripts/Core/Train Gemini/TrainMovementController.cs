@@ -1,6 +1,11 @@
 using UnityEngine;
 using Unity.Netcode;
 
+/// <summary>
+/// Server-authoritative train movement controller.
+/// Handles speed calculation (acceleration/braking) and position updates.
+/// Clients receive position updates via NetworkTransform.
+/// </summary>
 [DefaultExecutionOrder(-100)]
 public class TrainMovementController : NetworkBehaviour
 {
@@ -11,8 +16,8 @@ public class TrainMovementController : NetworkBehaviour
     public float acceleration = 2f;
     public float brakeForce = 5f;
 
-    // เปลี่ยนเป็น float ธรรมดา เพราะเราไม่ต้องซิงก์ตัวเลขความเร็วผ่านเน็ตแล้ว 
-    // เราจะซิงก์แค่ "ตำแหน่ง (Position)" ที่ Server ขยับเสร็จแล้วเท่านั้น
+    // Local speed value — not synced over network.
+    // Only the final position (via NetworkTransform) is synced to clients.
     public float currentSpeed = 0f;
 
     public NetworkVariable<TrainState> currentState = new NetworkVariable<TrainState>(
@@ -21,8 +26,7 @@ public class TrainMovementController : NetworkBehaviour
 
     private void Update()
     {
-        // หัวใจหลักของ AutomatedNetworkTransform: 
-        // ถ้าไม่ใช่ Server (ไม่มีสิทธิ์) ให้หยุดทำงานตรงนี้เลย Client ห้ามแตะต้องพิกัด!
+        // Only server controls train physics
         if (!IsServer) return;
 
         CalculateSpeed();
@@ -45,8 +49,10 @@ public class TrainMovementController : NetworkBehaviour
             case TrainState.Stopped:
                 if (currentSpeed > 0)
                 {
-                    float currentDeceleration = (currentState.Value == TrainState.Braking) ? brakeForce : (brakeForce * 0.5f);
-                    currentSpeed -= currentDeceleration * Time.deltaTime;
+                    float deceleration = (currentState.Value == TrainState.Braking) 
+                        ? brakeForce 
+                        : (brakeForce * 0.5f);
+                    currentSpeed -= deceleration * Time.deltaTime;
                     currentSpeed = Mathf.Max(currentSpeed, 0f);
                 }
                 else if (currentState.Value == TrainState.Braking && currentSpeed == 0f)
@@ -61,7 +67,7 @@ public class TrainMovementController : NetworkBehaviour
     {
         if (currentSpeed > 0)
         {
-            // Server ขยับโมเดลคนเดียว แล้ว NetworkTransform จะดึงพิกัดนี้ไปส่งให้ Client เอง
+            // Server moves the model; NetworkTransform syncs position to clients
             transform.Translate(Vector3.forward * (currentSpeed * Time.deltaTime));
         }
     }

@@ -10,6 +10,7 @@
                 <ui:VisualElement name="pain-icon" class="debuff-icon pain-icon-img" />
                 <ui:VisualElement name="weight-icon" class="debuff-icon weight-icon-img" />
                 <ui:VisualElement name="hunger-icon" class="debuff-icon hunger-icon-img" />
+                <ui:VisualElement name="toxic-icon" class="debuff-icon toxic-icon-img" />
             </ui:VisualElement>
 
             <!-- Main Bar = white-bordered rounded container (the "track") -->
@@ -25,6 +26,7 @@
                     <ui:VisualElement name="pain-fill" class="stat-bar debuff-bar pain-color" />
                     <ui:VisualElement name="weight-fill" class="stat-bar debuff-bar weight-color" />
                     <ui:VisualElement name="hunger-fill" class="stat-bar debuff-bar hunger-color" />
+                    <ui:VisualElement name="toxic-fill" class="stat-bar debuff-bar toxic-color" />
                 </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
