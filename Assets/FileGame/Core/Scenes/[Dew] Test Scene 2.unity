@@ -2071,14 +2071,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Blocks.Gameplay.Core.StormEventManager
   ShowTopMostFoldoutHeaderGroup: 1
-  rollIntervalMinutes: 5
-  baseProbability: 20
+  rollIntervalMinutes: 0.1
+  baseProbability: 80
   maxProbability: 100
   probabilityMultiplier: 2
   eventDurationSeconds: 30
   damageTick: 2
   damageAmount: 10
   jacketDurabilityDrain: 10
+  tornadoCount: 8
+  minSpawnRadius: 30
+  maxSpawnRadius: 200
+  mapCenter: {x: 0, y: 0, z: 0}
   stormParticlePrefab: {fileID: 1865603112017772757, guid: 0f059e5d480c814408dc615079587fad, type: 3}
 --- !u!1001 &379949152
 PrefabInstance:

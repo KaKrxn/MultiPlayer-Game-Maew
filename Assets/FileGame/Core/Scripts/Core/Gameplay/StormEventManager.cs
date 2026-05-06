@@ -23,12 +23,19 @@ namespace Blocks.Gameplay.Core
         [SerializeField] private float damageAmount = 10f;
         [SerializeField] private int jacketDurabilityDrain = 10;
 
+        [Header("Tornado Settings")]
+        [SerializeField] private int tornadoCount = 4;
+        [SerializeField] private float minSpawnRadius = 20f;   // ระยะขั้นต่ำจาก Player Center (ไม่ Spawn ชิด Player)
+        [SerializeField] private float maxSpawnRadius = 60f;   // ระยะสูงสุดจาก Player Center
+        [SerializeField] private Vector3 mapCenter = Vector3.zero;
+
         [Header("References")]
         [SerializeField] private GameObject stormParticlePrefab;
 
         // Safe Zones ที่ spawn/despawn แบบ dynamic จาก Train & Tile Map
         // StormSafeZone จะ Register ตัวเองมาที่นี่อัตโนมัติ
         private readonly List<StormSafeZone> _registeredSafeZones = new List<StormSafeZone>();
+        private readonly List<GameObject> _activeStormEffects = new();
 
         private float _rollTimer;
         private float _currentProbability;
@@ -140,17 +147,72 @@ namespace Blocks.Gameplay.Core
             }
         }
 
+        private Vector3 GetAveragePlayerPosition()
+        {
+            var clients = NetworkManager.Singleton.ConnectedClientsList;
+            if (clients.Count == 0) return mapCenter;
+
+            Vector3 sum = Vector3.zero;
+            int count = 0;
+            foreach (var client in clients)
+            {
+                if (client.PlayerObject != null)
+                {
+                    sum += client.PlayerObject.transform.position;
+                    count++;
+                }
+            }
+            return count > 0 ? sum / count : mapCenter;
+        }
+
+        // สุ่มตำแหน่ง Spawn โดยแบ่ง 360° รอบ Player เป็น Sector เท่าๆ กัน
+        // แต่ละ Tornado อยู่ใน Sector ของตัวเอง → กระจายรอบ Player เสมอ ไม่ Cluster
+        // Radius สุ่มระหว่าง minSpawnRadius ถึง maxSpawnRadius ต่อตัว
+        private Vector3[] GenerateTornadoPositions(Vector3 center)
+        {
+            var positions = new Vector3[tornadoCount];
+            float sectorAngle = 360f / tornadoCount;
+
+            for (int i = 0; i < tornadoCount; i++)
+            {
+                // แต่ละ Tornado ได้ sector ของตัวเอง เช่น 4 ตัว → 0°-90°, 90°-180°, 180°-270°, 270°-360°
+                float minAngle = sectorAngle * i;
+                float maxAngle = sectorAngle * (i + 1);
+                float angle = Random.Range(minAngle, maxAngle) * Mathf.Deg2Rad;
+
+                // สุ่ม radius ระหว่าง min-max → ไม่ Spawn ชิดกันตรงกลาง
+                float radius = Random.Range(minSpawnRadius, maxSpawnRadius);
+
+                positions[i] = center + new Vector3(
+                    Mathf.Cos(angle) * radius,
+                    0f,
+                    Mathf.Sin(angle) * radius
+                );
+
+                Debug.Log($"[StormEventManager] 📍 Tornado {i + 1} | " +
+                          $"Angle={angle * Mathf.Rad2Deg:F1}° | Radius={radius:F1}u | Pos={positions[i]}");
+            }
+
+            return positions;
+        }
+
         private void StartStorm()
         {
             _stormActive = true;
             _stormTimer = 0f;
             _damageTimer = 0f;
+
+            Vector3 center = GetAveragePlayerPosition();
+
             Debug.Log($"[StormEventManager] ⛈ STORM STARTED | " +
                       $"Duration={eventDurationSeconds}s | DamageTick={damageTick}s | " +
                       $"Damage={damageAmount} | JacketDrain={jacketDurabilityDrain} | " +
                       $"SafeZones active={_registeredSafeZones.Count} | " +
-                      $"Players={NetworkManager.Singleton.ConnectedClientsList.Count}");
-            PlayStormEffectClientRpc();
+                      $"Players={NetworkManager.Singleton.ConnectedClientsList.Count} | " +
+                      $"SpawnCenter={center}");
+
+            Vector3[] positions = GenerateTornadoPositions(center);
+            PlayStormEffectClientRpc(positions);
         }
 
         private void EndStorm()
@@ -250,7 +312,7 @@ namespace Blocks.Gameplay.Core
         }
 
         [ClientRpc]
-        private void PlayStormEffectClientRpc()
+        private void PlayStormEffectClientRpc(Vector3[] spawnPositions)
         {
             Debug.Log($"[StormEventManager] 🌩 [CLIENT] PlayStormEffect received | " +
                       $"ParticlePrefab={(stormParticlePrefab != null ? stormParticlePrefab.name : "NULL")}");
@@ -261,28 +323,39 @@ namespace Blocks.Gameplay.Core
                 return;
             }
 
-            // Spawn ที่ตำแหน่ง Camera ของ client แต่ละคน ไม่ใช่ world origin
-            Vector3 spawnPos = Camera.main != null
-                ? Camera.main.transform.position
-                : Vector3.zero;
-            var go = Instantiate(stormParticlePrefab, spawnPos, Quaternion.identity);
-            go.tag = "StormEffect";
-            Debug.Log($"[StormEventManager] ✅ [CLIENT] Particle spawned at {spawnPos}");
+            if (spawnPositions == null) return;
+
+            // Spawn tornado visuals at the server-selected world positions.
+            for (int i = 0; i < spawnPositions.Length; i++)
+            {
+                var go = Instantiate(stormParticlePrefab, spawnPositions[i], Quaternion.identity);
+                var mover = go.AddComponent<TornadoMover>();
+                mover.Initialize(spawnPositions[i]);
+                _activeStormEffects.Add(go);
+                Debug.Log($"[StormEventManager] ✅ [CLIENT] Tornado {i + 1} spawned at {spawnPositions[i]}");
+            }
+
+            Debug.Log($"[StormEventManager] 🌪 [CLIENT] Spawned {_activeStormEffects.Count} tornados");
         }
 
         [ClientRpc]
         private void StopStormEffectClientRpc()
         {
-            var go = GameObject.FindWithTag("StormEffect");
-            if (go != null)
+            int count = _activeStormEffects.Count;
+            for (int i = 0; i < _activeStormEffects.Count; i++)
             {
-                Destroy(go);
-                Debug.Log("[StormEventManager] ☀️ [CLIENT] StormEffect particle destroyed");
+                if (_activeStormEffects[i] != null)
+                {
+                    Destroy(_activeStormEffects[i]);
+                }
+                else
+                {
+                    Debug.LogWarning($"[StormEventManager] ⚠️ [CLIENT] StopStorm — tornado {i} was already null");
+                }
             }
-            else
-            {
-                Debug.LogWarning("[StormEventManager] ⚠️ [CLIENT] StopStorm — no StormEffect found to destroy");
-            }
+
+            _activeStormEffects.Clear();
+            Debug.Log($"[StormEventManager] ☀️ [CLIENT] Destroyed {count} tornado objects");
         }
     }
 }
