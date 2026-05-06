@@ -402,12 +402,6 @@ public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
         }
     }
 
-    public void SetInstanceData(ItemInstanceData data)
-    {
-        InstanceData = data;
-        UpdateStatUI();
-    }
-
     public void RefreshStatDisplay()
     {
         UpdateStatUI();

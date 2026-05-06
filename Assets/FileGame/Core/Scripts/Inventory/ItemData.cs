@@ -27,9 +27,6 @@ public class ItemData : ScriptableObject
     [Header("Prompt UI")]
     public ItemPromptDisplayType promptDisplayType = ItemPromptDisplayType.Generic;
 
-    [Header("Item Type")]
-    public ItemType itemType = ItemType.Generic;
-
     [Header("World Representation")]
     [Tooltip("The actual Prefab dropped into the world")]
     public GameObject dropPrefab;
