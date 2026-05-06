@@ -190,5 +190,29 @@ namespace Blocks.Gameplay.Core
             
             Debug.Log($"[PlayerAction] Teleported to: {targetPos}");
         }
+
+
+        /// <summary>
+        /// เช็คสถานะการตายของตัวละครนี้ (ใช้ผ่าน instance)
+        /// </summary>
+        public bool CheckIsDead()
+        {
+            return isDead.Value;
+        }
+
+        /// <summary>
+        /// (แนะนำ) ฟังก์ชัน Static สำหรับเช็คว่า Local Player ของเราตายอยู่หรือไม่
+        /// เรียกใช้ได้เลยโดยไม่ต้องเช็ค null instance ให้วุ่นวาย
+        /// </summary>
+        public static bool IsLocalPlayerDead()
+        {
+            if (instance != null)
+            {
+                return instance.isDead.Value;
+            }
+            
+            // ถ้าตัวละครยังไม่เกิด (instance เป็น null) ให้คืนค่า false ไปก่อน
+            return false; 
+        }
     }
 }

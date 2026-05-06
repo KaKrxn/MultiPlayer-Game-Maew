@@ -258,6 +258,7 @@ namespace Blocks.Gameplay.Core
         private void Update()
         {
             if (!IsOwner) return;
+            if (PlayerAction.IsLocalPlayerDead()) return;
 
             // Update landing timer when grounded
             if (IsGrounded)
