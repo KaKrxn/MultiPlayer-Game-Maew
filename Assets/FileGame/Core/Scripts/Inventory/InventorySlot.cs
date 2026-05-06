@@ -6,11 +6,17 @@ public class InventorySlot : MonoBehaviour, IDropHandler
 {
     public InventoryItem Item { get; private set; }
 
-    public bool IsEmpty => transform.childCount == 0;
+    public bool IsEmpty => Item == null;
 
     public void SetItem(InventoryItem itemToSet)
     {
         Item = itemToSet;
+
+        if (itemToSet != null)
+        {
+            itemToSet.transform.SetParent(transform, false);
+            itemToSet.SetAvailable();
+        }
     }
 
     public void OnDrop(PointerEventData eventData)

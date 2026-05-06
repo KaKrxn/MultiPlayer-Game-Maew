@@ -12,8 +12,20 @@ public class TrainControlButton : MonoBehaviour, IInteractable
     [Header("Button Settings")]
     public bool isForwardButton = true;
 
-    public void OnInteract(ulong interactorClientId)
+    // --- IInteractable Implementation ---
+    public InteractionTriggerMode TriggerMode => InteractionTriggerMode.OnButtonPress;
+    public int Priority => 10;
+    public string InteractionPromptText => isForwardButton ? "Start Train" : "Stop Train";
+    
+    public bool CanInteract(GameObject interactor) => true;
+
+    public void Interact(GameObject interactor)
     {
+        ulong interactorClientId = 0;
+        if (interactor.TryGetComponent<Unity.Netcode.NetworkObject>(out var netObj))
+        {
+            interactorClientId = netObj.OwnerClientId;
+        }
         if (trainController != null)
         {
             // [เพิ่มโค้ดส่วนนี้] เช็คน้ำมันก่อนกดปุ่มเดินหน้า

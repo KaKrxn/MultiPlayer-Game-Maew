@@ -118,7 +118,7 @@ namespace Blocks.Gameplay.Platformer
             if (!movement.IsGrounded) return;
 
             float jumpStaminaCost = locomotionAbility.JumpStaminaCost;
-            if (m_PlayerManager.CoreStats.TryConsumeStat(StatKeys.Stamina, jumpStaminaCost, OwnerClientId))
+            if (m_PlayerManager.CoreStats.TryConsumeStat(StatKeys.Health, jumpStaminaCost, OwnerClientId))
             {
                 movement.PerformJump();
             }
@@ -136,7 +136,7 @@ namespace Blocks.Gameplay.Platformer
             if (!movement.IsSprinting || movement.CurrentSpeed <= 0.1f || !movement.IsGrounded) return;
 
             float staminaCost = locomotionAbility.StaminaCost * Time.deltaTime;
-            if (!m_PlayerManager.CoreStats.TryConsumeStat(StatKeys.Stamina, staminaCost, OwnerClientId))
+            if (!m_PlayerManager.CoreStats.TryConsumeStat(StatKeys.Health, staminaCost, OwnerClientId))
             {
                 movement.SetSprintState(false);
             }

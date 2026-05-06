@@ -1,0 +1,157 @@
+/* ============================================
+   PEAK-Style Stamina / Debuff Status Bar
+   ============================================ */
+
+.status-root {
+    position: absolute;
+    bottom: 40px;
+    left: 40px;
+    width: 450px;
+    flex-direction: column;
+}
+
+/* ---- Main Bar Row (relative container for icon overlay) ---- */
+.main-bar-row {
+    position: relative;
+    height: 60px; /* increased height for higher icons */
+    width: 100%;
+    margin-bottom: 8px;
+}
+
+/* ---- Icons Layer (absolute, floats above bar) ---- */
+.icons-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 24px;
+}
+
+.debuff-icon {
+    position: absolute;
+    width: 28px;
+    height: 28px;
+    top: -8px; /* moved higher up (was -2px) */
+    -unity-background-scale-mode: scale-to-fit;
+    transition-property: opacity, left;
+    transition-duration: 0.4s;
+    transition-timing-function: ease-in-out;
+}
+
+/* Icon Images — resource() paths are relative to any Resources folder */
+.pain-icon-img {
+    background-image: resource("UI/Icon_Pain");
+}
+
+.weight-icon-img {
+    background-image: resource("UI/Icon_Weight");
+}
+
+.hunger-icon-img {
+    background-image: resource("UI/Icon_Hunger");
+}
+
+/* ---- Main Bar Container = the white-bordered "track" ---- */
+.main-bar-container {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 35px;
+    border-width: 3px;
+    border-color: #F8F5E1;
+    border-radius: 15px;
+    background-color: rgba(0, 0, 0, 0.35);
+}
+
+/* Inner track */
+.main-bar-track {
+    position: absolute;
+    top: 3px;
+    bottom: 3px;
+    left: 4px;
+    right: 4px;
+    overflow: visible;
+}
+
+/* ---- Individual Stat Bars ---- */
+.stat-bar {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-radius: 10px;
+    border-width: 0;
+    transition-property: width, opacity, left;
+    transition-duration: 0.4s;
+    transition-timing-function: ease-out;
+}
+
+.debuff-bar {
+    /* Stripe pattern overlay */
+    background-image: resource("UI/DebuffStripePattern");
+    -unity-background-scale-mode: stretch-to-fill;
+}
+
+/* ---- Specific Colors ---- */
+.energy-color {
+    background-color: #66DD00;
+    left: 0;
+}
+
+.energy-ghost-color {
+    background-color: rgba(102, 221, 0, 0.3);
+    left: 0;
+}
+
+.pain-color {
+    background-color: transparent;
+    -unity-background-image-tint-color: #990033; /* Solid pain color for the stripes */
+}
+
+.weight-color {
+    background-color: transparent;
+    -unity-background-image-tint-color: #A05A2C; /* Solid weight color for the stripes */
+}
+
+.hunger-color {
+    background-color: transparent;
+    -unity-background-image-tint-color: #FFB300; /* Solid hunger color for the stripes */
+}
+
+.extra-energy-color {
+    background-color: #CCFF00;
+}
+
+/* ---- Extra Energy Bar ---- */
+.extra-container {
+    flex-direction: row;
+    height: 25px;
+    width: 60%;
+    align-items: center;
+}
+
+.icon-bolt {
+    width: 24px;
+    height: 28px;
+    margin-right: 8px;
+    background-image: resource("UI/Icon_Bolt");
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.extra-bar-container {
+    flex-grow: 1;
+    height: 100%;
+    border-width: 3px;
+    border-color: #F8F5E1;
+    border-radius: 15px;
+    background-color: rgba(0, 0, 0, 0.35);
+}
+
+.extra-bar-track {
+    position: absolute;
+    top: 3px;
+    bottom: 3px;
+    left: 4px;
+    right: 4px;
+    overflow: hidden;
+}

@@ -1,5 +1,6 @@
 using Unity.Netcode;
 using UnityEngine;
+using FileGame.Core;
 
 public class DestroyNetworkItemSync : NetworkBehaviour
 {
@@ -18,34 +19,54 @@ public class DestroyNetworkItemSync : NetworkBehaviour
     private void PickupServerRpc(ServerRpcParams serverRpcParams = default)
     {
         NetworkObject netObj = GetComponent<NetworkObject>();
+        Item item = GetComponent<Item>();
 
         if (netObj != null && netObj.IsSpawned)
         {
             ulong winnerClientId = serverRpcParams.Receive.SenderClientId;
-            // Debug.Log($"Server ตัดสินให้ Client ID: {winnerClientId} เป็นคนได้ของไป!");
 
-            ClientRpcParams clientRpcParams = new ClientRpcParams
+            if (item != null)
             {
-                Send = new ClientRpcSendParams
-                {
-                    TargetClientIds = new ulong[] { winnerClientId }
-                }
-            };
+                ApplyWeightToPlayer(winnerClientId, item.WeightKg);
+            }
 
-            GrantItemClientRpc(clientRpcParams);
-            netObj.Despawn();
+            GrantItemClientRpc(winnerClientId);
+            DeactivateObjectClientRpc();
+
+            netObj.Despawn(false);
+            gameObject.SetActive(false);
         }
     }
 
+    [ClientRpc]
+    private void GrantItemClientRpc(ulong targetClientId)
+    {
+        if (NetworkManager.Singleton.LocalClientId != targetClientId) return;
+
+        Item myItem = GetComponent<Item>();
+        if (myItem != null && myItem.Data != null && InventoryManager.instance != null)
+        {
+            InventoryManager.instance.AddItem(myItem.BuildItemInstanceData());
+        }
+    }
 
     [ClientRpc]
-    private void GrantItemClientRpc(ClientRpcParams clientRpcParams = default)
+    private void DeactivateObjectClientRpc()
     {
-        Item myItem = GetComponent<Item>();
-        if (myItem != null)
+        gameObject.SetActive(false);
+    }
+
+    private void ApplyWeightToPlayer(ulong clientId, float weightKg)
+    {
+        if (NetworkManager.Singleton == null) return;
+        if (!NetworkManager.Singleton.ConnectedClients.TryGetValue(clientId, out var clientData)) return;
+
+        NetworkObject playerObject = clientData.PlayerObject;
+        if (playerObject == null) return;
+
+        if (playerObject.TryGetComponent<PlayerSurvivalSystem>(out var survivalSystem))
         {
-            InventoryManager.instance.AddItem(myItem);
-            // Debug.Log("เย้! ฉันเก็บไอเทมสำเร็จและเข้ากระเป๋าแล้ว!");
+            survivalSystem.ApplyCarriedWeightDelta(weightKg);
         }
     }
 }

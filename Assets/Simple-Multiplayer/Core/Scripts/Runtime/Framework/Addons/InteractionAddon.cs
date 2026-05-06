@@ -15,7 +15,7 @@ namespace Blocks.Gameplay.Core
 
         [Header("Detection Settings")]
         [Tooltip("The layer mask that defines which objects are considered interactable.")]
-        [SerializeField] private LayerMask interactionLayer;
+        [SerializeField] private LayerMask interactionLayer = ~0; // Default to Everything to be robust
 
         [Tooltip("The maximum distance from the camera for raycast-based interactions.")]
         [SerializeField] private float raycastDistance = 5f;
@@ -34,6 +34,8 @@ namespace Blocks.Gameplay.Core
         /// Gets or sets a value indicating whether the interactor is currently enabled.
         /// </summary>
         public bool IsEnabled { get; set; } = true;
+
+        public event System.Action<IInteractable> OnFocusChanged;
 
         private CorePlayerManager m_PlayerManager;
         private Camera m_MainCamera;
@@ -63,6 +65,11 @@ namespace Blocks.Gameplay.Core
                 m_MainCamera = Camera.main;
                 onInteractPressed.RegisterListener(TryInteract);
                 IsEnabled = true;
+
+                // Programmatically exclude Player (Layer 3) and PlayerHitBox (Layer 17) from the interaction mask
+                // to prevent the player from hitting their own collider in Third Person mode.
+                int maskToExclude = (1 << 3) | (1 << 17);
+                interactionLayer &= ~maskToExclude;
             }
             else
             {
@@ -142,7 +149,11 @@ namespace Blocks.Gameplay.Core
 
         private void ClearFocus()
         {
-            m_CurrentFocusedInteractable = null;
+            if (m_CurrentFocusedInteractable != null)
+            {
+                m_CurrentFocusedInteractable = null;
+                OnFocusChanged?.Invoke(null);
+            }
         }
 
         /// <summary>
@@ -150,7 +161,11 @@ namespace Blocks.Gameplay.Core
         /// </summary>
         private void FindBestInteractable()
         {
-            if (m_MainCamera == null) return;
+            if (m_MainCamera == null)
+            {
+                m_MainCamera = Camera.main;
+                if (m_MainCamera == null) return;
+            }
 
             var interactables = new List<IInteractable>();
 
@@ -165,10 +180,22 @@ namespace Blocks.Gameplay.Core
 
             if (Physics.Raycast(m_MainCamera.transform.position, m_MainCamera.transform.forward, out var hit, raycastDistance, interactionLayer))
             {
+                // Visual Debug Ray for the Editor
+                Debug.DrawLine(m_MainCamera.transform.position, hit.point, Color.green);
+
                 if (hit.collider.TryGetComponent<IInteractable>(out var raycastTarget) && !IsPhysicsBased(raycastTarget.TriggerMode))
                 {
                     interactables.Add(raycastTarget);
                 }
+                else
+                {
+                    // Debug.Log($"[InteractionAddon] Raycast hit {hit.collider.name} but it's not a valid interactable or logic-based.");
+                }
+            }
+            else
+            {
+                // Visual Debug Ray for when nothing is hit
+                Debug.DrawRay(m_MainCamera.transform.position, m_MainCamera.transform.forward * raycastDistance, Color.red);
             }
 
             int hitCount = Physics.OverlapSphereNonAlloc(transform.position, proximityRadius, m_ProximityColliders, interactionLayer);
@@ -202,7 +229,9 @@ namespace Blocks.Gameplay.Core
 
             if (bestTarget != m_CurrentFocusedInteractable)
             {
+                // Debug.Log($"[InteractionAddon] Focus Changed: {(bestTarget != null ? bestTarget.InteractionPromptText : "None")}");
                 m_CurrentFocusedInteractable = bestTarget;
+                OnFocusChanged?.Invoke(m_CurrentFocusedInteractable);
 
                 // Automatically interact when entering focus for OnFocusEnter trigger mode
                 if (m_CurrentFocusedInteractable != null && m_CurrentFocusedInteractable.TriggerMode == InteractionTriggerMode.OnFocusEnter)

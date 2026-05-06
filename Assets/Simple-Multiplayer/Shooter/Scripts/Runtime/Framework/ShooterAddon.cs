@@ -103,7 +103,11 @@ namespace Blocks.Gameplay.Shooter
         /// </summary>
         public void OnPlayerSpawn()
         {
+
             if (m_PlayerManager != null && m_PlayerManager.IsOwner)
+
+            if (m_PlayerManager.IsOwner && onAimToggled != null)
+
             {
                 if (onAimToggled == null)
                 {

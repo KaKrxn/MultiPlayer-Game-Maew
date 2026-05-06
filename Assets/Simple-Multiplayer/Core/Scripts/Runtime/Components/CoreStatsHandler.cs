@@ -1,6 +1,7 @@
 using UnityEngine;
 using Unity.Netcode;
 using System.Collections.Generic;
+using System;
 
 namespace Blocks.Gameplay.Core
 {
@@ -24,6 +25,12 @@ namespace Blocks.Gameplay.Core
         [SerializeField] private StatChangeEvent onStatChangedEvent;
         [Tooltip("GameEvent raised when any stat reaches zero (only for stats with broadcastNetworkedEvents enabled).")]
         [SerializeField] private StatDepletedEvent onStatDepletedEvent;
+        
+        /// <summary>
+        /// C# event raised when any stat's value changes. 
+        /// Useful for code-based systems on the same object.
+        /// </summary>
+        public event Action<StatChangePayload> OnStatChanged;
 
         /// <summary>
         /// Gets a value indicating whether the character is currently alive.
@@ -77,7 +84,7 @@ namespace Blocks.Gameplay.Core
             // Broadcast the initial state of all stats for late-joining clients or initialization
             foreach (var stat in m_RuntimeStats)
             {
-                BroadcastStatChange(stat);
+                BroadcastStatChange(stat, 0, stat.SourcePlayerId, stat.SourceType);
             }
 
             // Set the initial alive state
@@ -245,7 +252,14 @@ namespace Blocks.Gameplay.Core
         {
             UpdateAliveState();
             var stat = changeEvent.Value;
-            BroadcastStatChange(stat, stat.SourcePlayerId, stat.SourceType);
+            
+            float changeAmount = 0;
+            if (changeEvent.Type == NetworkListEvent<RuntimeStat>.EventType.Value)
+            {
+                changeAmount = changeEvent.Value.CurrentValue - changeEvent.PreviousValue.CurrentValue;
+            }
+            
+            BroadcastStatChange(stat, changeAmount, stat.SourcePlayerId, stat.SourceType);
         }
 
         /// <summary>
@@ -294,9 +308,10 @@ namespace Blocks.Gameplay.Core
         /// For local player updates, listeners can filter using IsOwner.
         /// </summary>
         /// <param name="stat">The stat that has changed.</param>
+        /// <param name="changeAmount">The amount by which the stat changed.</param>
         /// <param name="sourcePlayerId">The player who caused this stat change.</param>
         /// <param name="sourceType">The type of modification that occurred.</param>
-        private void BroadcastStatChange(RuntimeStat stat, ulong sourcePlayerId = 0, ModificationSource sourceType = ModificationSource.Unknown)
+        private void BroadcastStatChange(RuntimeStat stat, float changeAmount, ulong sourcePlayerId = 0, ModificationSource sourceType = ModificationSource.Unknown)
         {
             if (m_StatDefinitions.TryGetValue(stat.StatHash, out var def))
             {
@@ -310,9 +325,11 @@ namespace Blocks.Gameplay.Core
                         statName = def.statName,
                         statID = stat.StatHash,
                         currentValue = stat.CurrentValue,
-                        maxValue = def.maxValue
+                        maxValue = def.maxValue,
+                        changeAmount = changeAmount
                     };
                     onStatChangedEvent?.Raise(statPayload);
+                    OnStatChanged?.Invoke(statPayload);
                 }
 
                 if (def.eventFlags.HasFlag(StatEventFlags.OnDepleted))
@@ -362,8 +379,17 @@ namespace Blocks.Gameplay.Core
                 // Assignment to NetworkList triggers network synchronization to all clients
                 m_RuntimeStats[index] = stat;
 
-                // Record use time only for consumption to enforce regeneration delays
-                if (recordUseTime && amount < 0)
+                // Record use time only for actual impacts to enforce regeneration delays
+                // We ignore programmatic changes like Natural (capping) or Regeneration/Healing
+                bool isNegativeImpact = amount < 0 && (
+                    sourceType == ModificationSource.Direct || 
+                    sourceType == ModificationSource.Damage || 
+                    sourceType == ModificationSource.Consumption || 
+                    sourceType == ModificationSource.Injury ||
+                    sourceType == ModificationSource.Environmental
+                );
+
+                if (recordUseTime && isNegativeImpact)
                 {
                     m_LastStatUseTime[stat.StatHash] = Time.time;
                 }

@@ -112,7 +112,7 @@ namespace Blocks.Gameplay.Core
             // Check stamina if needed
             if (staminaCost > 0f && m_CoreStats != null)
             {
-                if (!m_CoreStats.TryConsumeStat(StatKeys.Stamina, staminaCost, OwnerClientId))
+                if (!m_CoreStats.TryConsumeStat(StatKeys.Health, staminaCost, OwnerClientId))
                 {
                     return;
                 }

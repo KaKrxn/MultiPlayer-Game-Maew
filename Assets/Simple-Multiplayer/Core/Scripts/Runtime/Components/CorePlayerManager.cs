@@ -24,6 +24,8 @@ namespace Blocks.Gameplay.Core
         [Tooltip("Reference to the Core Player State component.")]
         [SerializeField] private CorePlayerState corePlayerState;
 
+        private IStaminaProvider m_StaminaProvider;
+
         [Header("Lifecycle Settings")]
         [Tooltip("If true, this component immediately processes elimination when health depletes. If false, it waits for the Game Manager to set the state.")]
         [SerializeField] private bool autoHandleLifecycle;
@@ -214,7 +216,7 @@ namespace Blocks.Gameplay.Core
                 return;
             }
 
-            if (isSprinting && coreStats.GetCurrentValue(StatKeys.Stamina) < 1f)
+            if (isSprinting && coreStats.GetCurrentValue(StatKeys.Health) < 1f)
             {
                 coreMovement.SetSprintState(false);
                 return;
@@ -241,7 +243,14 @@ namespace Blocks.Gameplay.Core
             }
 
             float jumpStaminaCost = CoreMovement.GetAbilityStaminaCost<JumpAbility>();
-            if (coreStats.TryConsumeStat(StatKeys.Stamina, jumpStaminaCost, OwnerClientId))
+
+            // Override with stamina provider value if set
+            if (m_StaminaProvider != null && m_StaminaProvider.JumpEnergyCost >= 0)
+            {
+                jumpStaminaCost = m_StaminaProvider.JumpEnergyCost;
+            }
+
+            if (coreStats.TryConsumeStat(StatKeys.Health, jumpStaminaCost, OwnerClientId))
             {
                 coreMovement.PerformJump();
             }
@@ -393,6 +402,7 @@ namespace Blocks.Gameplay.Core
             if (coreStats == null) coreStats = GetComponent<CoreStatsHandler>();
             if (coreCamera == null) coreCamera = GetComponent<CoreCameraController>();
             if (corePlayerState == null) corePlayerState = GetComponent<CorePlayerState>();
+            if (m_StaminaProvider == null) m_StaminaProvider = GetComponent<IStaminaProvider>();
         }
 
         private void DisableOwnerOnlyComponents()
@@ -426,7 +436,14 @@ namespace Blocks.Gameplay.Core
             if (!coreMovement.IsSprinting || coreMovement.CurrentSpeed <= 0.1f || !coreMovement.IsGrounded) return;
 
             float staminaToConsume = CoreMovement.GetAbilityStaminaCost<WalkAbility>() * Time.deltaTime;
-            if (!coreStats.TryConsumeStat(StatKeys.Stamina, staminaToConsume, OwnerClientId))
+
+            // Override with stamina provider value if set
+            if (m_StaminaProvider != null && m_StaminaProvider.SprintEnergyCost >= 0)
+            {
+                staminaToConsume = m_StaminaProvider.SprintEnergyCost * Time.deltaTime;
+            }
+
+            if (!coreStats.TryConsumeStat(StatKeys.Health, staminaToConsume, OwnerClientId))
             {
                 coreMovement.SetSprintState(false);
             }

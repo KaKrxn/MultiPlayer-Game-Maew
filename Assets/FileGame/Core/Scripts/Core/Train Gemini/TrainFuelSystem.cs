@@ -61,6 +61,5 @@ public class TrainFuelSystem : NetworkBehaviour
         {
             currentFuel.Value = maxFuel;
         }
-        Debug.Log($"[Server] ⛽ เติมน้ำมัน {amount} หน่วย -> น้ำมันปัจจุบัน: {currentFuel.Value}/{maxFuel}");
     }
 }

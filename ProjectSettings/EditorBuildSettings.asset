@@ -42,8 +42,13 @@ EditorBuildSettings:
     path: Assets/FileGame/Core/Scenes/Lobby/Lobby.unity
     guid: 455957b1d21508c48932200a8c3dbf93
   - enabled: 1
+
     path: Assets/Wow/[Dew] wowTest Scene 1.unity
     guid: 930de3311bb85e04a85448f090a5309b
+
+    path: Assets/FileGame/Core/Scenes/[Ten] Test Player.unity
+    guid: aeaa6ba03777d454881b7788f9297dcb
+
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0

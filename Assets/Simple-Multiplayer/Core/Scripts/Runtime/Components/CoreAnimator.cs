@@ -22,11 +22,37 @@ namespace Blocks.Gameplay.Core
         [Tooltip("Sound definition for footstep sounds.")]
         [SerializeField] private SoundDef soundDefFootstep;
 
-        private readonly int m_AnimIDSpeed = Animator.StringToHash("Speed");
-        private readonly int m_AnimIDGrounded = Animator.StringToHash("Grounded");
-        private readonly int m_AnimIDJump = Animator.StringToHash("Jump");
-        private readonly int m_AnimIDFreeFall = Animator.StringToHash("FreeFall");
-        private readonly int m_AnimIDMotionSpeed = Animator.StringToHash("MotionSpeed");
+        [Header("Animation Parameters")]
+        [Tooltip("Name of the Speed float parameter")]
+        [SerializeField] private string speedParam = "Speed";
+        [Tooltip("Name of the Grounded bool parameter")]
+        [SerializeField] private string groundedParam = "Grounded";
+        [Tooltip("Name of the Jump parameter (can be bool or trigger)")]
+        [SerializeField] private string jumpParam = "Jump";
+        [Tooltip("Name of the FreeFall bool parameter")]
+        [SerializeField] private string freeFallParam = "FreeFall";
+        [Tooltip("Name of the MotionSpeed float parameter")]
+        [SerializeField] private string motionSpeedParam = "MotionSpeed";
+        [Tooltip("Name of the Death bool parameter")]
+        [SerializeField] private string deathParam = "die";
+        
+        [Tooltip("If true, treats the Jump parameter as a Trigger rather than a Bool.")]
+        [SerializeField] private bool useJumpTrigger = false;
+
+        private int m_AnimIDSpeed;
+        private int m_AnimIDGrounded;
+        private int m_AnimIDJump;
+        private int m_AnimIDFreeFall;
+        private int m_AnimIDMotionSpeed;
+        private int m_AnimIDDeath;
+        private CorePlayerState m_PlayerState;
+
+        private bool m_HasSpeedParam;
+        private bool m_HasGroundedParam;
+        private bool m_HasJumpParam;
+        private bool m_HasFreeFallParam;
+        private bool m_HasMotionSpeedParam;
+        private bool m_HasDeathParam;
 
         #endregion
 
@@ -43,6 +69,61 @@ namespace Blocks.Gameplay.Core
             if (soundDefFootstep == null)
             {
                 Debug.LogError("[Core Animator] Footstep SoundDef is not assigned.");
+            }
+
+            m_AnimIDSpeed = string.IsNullOrEmpty(speedParam) ? 0 : Animator.StringToHash(speedParam);
+            m_AnimIDGrounded = string.IsNullOrEmpty(groundedParam) ? 0 : Animator.StringToHash(groundedParam);
+            m_AnimIDJump = string.IsNullOrEmpty(jumpParam) ? 0 : Animator.StringToHash(jumpParam);
+            m_AnimIDFreeFall = string.IsNullOrEmpty(freeFallParam) ? 0 : Animator.StringToHash(freeFallParam);
+            m_AnimIDMotionSpeed = string.IsNullOrEmpty(motionSpeedParam) ? 0 : Animator.StringToHash(motionSpeedParam);
+            m_AnimIDDeath = string.IsNullOrEmpty(deathParam) ? 0 : Animator.StringToHash(deathParam);
+
+            m_PlayerState = GetComponent<CorePlayerState>();
+        }
+
+        private bool m_ParamsInitialized = false;
+
+        private void InitializeParameters()
+        {
+            if (m_ParamsInitialized) return;
+            if (Animator == null || Animator.runtimeAnimatorController == null) return;
+
+            foreach (AnimatorControllerParameter param in Animator.parameters)
+            {
+                if (param.name == speedParam) m_HasSpeedParam = true;
+                if (param.name == groundedParam) m_HasGroundedParam = true;
+                if (param.name == jumpParam) m_HasJumpParam = true;
+                if (param.name == freeFallParam) m_HasFreeFallParam = true;
+                if (param.name == motionSpeedParam) m_HasMotionSpeedParam = true;
+                if (param.name == deathParam) m_HasDeathParam = true;
+            }
+            m_ParamsInitialized = true;
+        }
+
+        public override void OnNetworkSpawn()
+        {
+            base.OnNetworkSpawn();
+            if (m_PlayerState != null)
+            {
+                m_PlayerState.OnLifeStateChanged += HandleLifeStateChanged;
+            }
+        }
+
+        public override void OnNetworkDespawn()
+        {
+            if (m_PlayerState != null)
+            {
+                m_PlayerState.OnLifeStateChanged -= HandleLifeStateChanged;
+            }
+            base.OnNetworkDespawn();
+        }
+
+        private void HandleLifeStateChanged(PlayerLifeState newState)
+        {
+            bool isEliminated = (newState == PlayerLifeState.Eliminated);
+            if (m_AnimIDDeath != 0 && m_HasDeathParam)
+            {
+                Animator.SetBool(m_AnimIDDeath, isEliminated);
             }
         }
 
@@ -122,17 +203,29 @@ namespace Blocks.Gameplay.Core
         /// </summary>
         private void UpdateLocomotionParameters()
         {
+            InitializeParameters();
+
             bool isGrounded = coreMovement.IsGrounded;
             float verticalVelocity = coreMovement.VerticalVelocity;
 
-            // Set booleans for grounded, jumping, and falling states.
-            Animator.SetBool(m_AnimIDGrounded, isGrounded);
-            Animator.SetBool(m_AnimIDJump, !isGrounded && verticalVelocity > 0.1f);
-            Animator.SetBool(m_AnimIDFreeFall, !isGrounded && verticalVelocity <= 0.1f);
+            if (m_HasGroundedParam) Animator.SetBool(m_AnimIDGrounded, isGrounded);
+            
+            if (m_HasJumpParam)
+            {
+                if (useJumpTrigger)
+                {
+                    if (coreMovement.JumpRequested) base.SetTrigger(m_AnimIDJump);
+                }
+                else
+                {
+                    Animator.SetBool(m_AnimIDJump, !isGrounded && verticalVelocity > 0.1f);
+                }
+            }
+            
+            if (m_HasFreeFallParam) Animator.SetBool(m_AnimIDFreeFall, !isGrounded && verticalVelocity <= 0.1f);
 
-            // Set floats for speed and input magnitude to drive blend trees.
-            Animator.SetFloat(m_AnimIDSpeed, coreMovement.CurrentSpeed);
-            Animator.SetFloat(m_AnimIDMotionSpeed, coreMovement.InputMagnitude);
+            if (m_HasSpeedParam) Animator.SetFloat(m_AnimIDSpeed, coreMovement.CurrentSpeed);
+            if (m_HasMotionSpeedParam) Animator.SetFloat(m_AnimIDMotionSpeed, coreMovement.InputMagnitude);
         }
 
         public void TurnInPlaceStart()

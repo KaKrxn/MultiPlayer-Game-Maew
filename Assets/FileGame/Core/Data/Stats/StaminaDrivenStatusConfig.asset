@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 867f9e0b4ddf84ffe9463fe9cff0fe07, type: 3}
+  m_Name: StaminaDrivenStatusConfig
+  m_EditorClassIdentifier: Blocks.Gameplay.Core::Blocks.Gameplay.Core.StatsConfig
+  stats:
+  - {fileID: 11400000, guid: 6086ee43a4de4c345b256c01e9c908fc, type: 2}
+  - {fileID: 11400000, guid: 4f17d90c78d26a54da38b504010aaa4d, type: 2}
+  - {fileID: 11400000, guid: 7cf76181bcb1bf042bffddc320f0c6dd, type: 2}
+  - {fileID: 11400000, guid: 4925a2b97a00ac240bfdfc662c62cf39, type: 2}
+  - {fileID: 11400000, guid: 98a6566798d351247b1ee421bd8373a4, type: 2}
+  - {fileID: 11400000, guid: 16cb7ab3b10261045aca6e678b2da162, type: 2}
+  primaryStatName: Vitality
