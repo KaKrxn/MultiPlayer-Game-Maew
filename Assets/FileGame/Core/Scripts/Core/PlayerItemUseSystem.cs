@@ -93,6 +93,24 @@ namespace FileGame.Core
             if (InventoryManager.instance == null) return;
 
             int selectedIndex = InventoryManager.instance.selectedQuickSlotIndex;
+            
+            // 🛑 [เพิ่มใหม่] ดึงข้อมูลไอเทมมาเพื่อทำการ Debug ดูชื่อ
+            var slotData = InventoryManager.instance.GetQuickSlotItemData(selectedIndex);
+            string itemName = "Unknown Item";
+            
+            if (slotData.itemInstance.IsValid && slotData.itemInstance.itemData != null)
+            {
+                itemName = slotData.itemInstance.itemData.name; // หรือเปลี่ยนเป็น .ItemName ตามที่คุณตั้งไว้ในโค้ด Data
+            }
+
+            // 🛑 [เพิ่มใหม่] ปริ้นท์บอกว่าใช้ไอเทมอะไร สล็อตไหน
+            Debug.Log($"🍲 [ItemUseSystem] กดใช้งาน/กินไอเทมสำเร็จ: {itemName} (QuickSlot ช่องที่: {selectedIndex})");
+
+
+            if (itemName == "Bandage")
+            {
+                PlayerAction.instance.LocalRevive();
+            }
 
             // Route through InventoryNetworkHandler which handles both
             // the survival effect and the inventory slot removal on server
@@ -109,4 +127,3 @@ namespace FileGame.Core
         }
     }
 }
-
