@@ -2643,9 +2643,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MainMenuManager
   roomSelectSceneName: RoomSelect
-  settingsSceneName: Settings
-  nameInputPopup: {fileID: 0}
-  renameButton: {fileID: 0}
+  settingPanel: {fileID: 0}
+  settingPanelUI: {fileID: 0}
+  nameInputPopup: {fileID: 2093199465}
+  renameButton: {fileID: 1516710219}
 --- !u!4 &1326180167
 Transform:
   m_ObjectHideFlags: 0

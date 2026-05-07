@@ -282,7 +282,15 @@ namespace Blocks.Gameplay.Core
                     Debug.LogWarning("[CorePlayerManager] corePlayerState is null in HandleStatDepleted");
                     return;
                 }
+                
+                // Set life state to eliminated
                 corePlayerState.SetLifeState(PlayerLifeState.Eliminated);
+
+                // Trigger PlayerAction death (graveyard teleport and spectating)
+                if (PlayerAction.instance != null)
+                {
+                    PlayerAction.instance.LocalDie();
+                }
             }
         }
 

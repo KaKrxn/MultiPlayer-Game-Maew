@@ -225,6 +225,12 @@ public class InventoryNetworkHandler : NetworkBehaviour
                     UnityEngine.Debug.Log($"[Survival] Player used Antidote (Fallback)! Cured {Mathf.Abs(reductionAmount)} Toxic.");
                 }
             
+            } else if (itemData.itemName == "Bandage") {
+                // Bandage: reduces Pain based on durability
+                float reductionAmount = -(slotData.durability) * removeAmount;
+                statsHandler.ModifyStat(SurvivalStatKeys.Pain, reductionAmount, OwnerClientId, Blocks.Gameplay.Core.ModificationSource.Natural);
+                UnityEngine.Debug.Log($"[Survival] Player used Bandage! Reduced Pain by {Mathf.Abs(reductionAmount)}.");
+
             } else {
                 // Food: reduces hunger based on durability
                 float reductionAmount = -(slotData.durability / GameConstants.HungerReductionDivisor) * removeAmount;

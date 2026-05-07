@@ -16,7 +16,7 @@ MonoBehaviour:
   itemPicture: {fileID: -724805922, guid: 215687feeab0b7445b4a1cd86c82c2e1, type: 3}
   description: This is healing item.
   itemType: 3
-  maxStack: 20
+  maxStack: 1
   isConsumable: 1
   usesAmountValue: 0
   toxicChance: 0

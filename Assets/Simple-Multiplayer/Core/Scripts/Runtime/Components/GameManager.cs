@@ -30,11 +30,6 @@ namespace Blocks.Gameplay.Core
         [Tooltip("Configuration settings for the multiplayer session.")]
         [SerializeField] private SessionSettings sessionSettings;
 
-        [Tooltip("UI Document that displays session/lobby interface.")]
-        [SerializeField] private UIDocument sessionUI;
-
-        [Tooltip("Duration in seconds for the session UI fade-out animation.")]
-        [SerializeField] private float fadeDuration = 0.5f;
 
         [Header("Game Rules")]
         [Tooltip("Time in seconds before the local player respawns.")]
@@ -105,16 +100,9 @@ namespace Blocks.Gameplay.Core
             DontDestroyOnLoad(gameObject);
 
             // Validate required references
-            if (sessionUI == null)
-            {
-                Debug.LogError("[GameManager] SessionUI is not assigned.", this);
-            }
             if (sessionSettings == null)
             {
                 Debug.LogError("[GameManager] SessionSettings is not assigned.", this);
-            }
-            if (sessionUI == null || sessionSettings == null)
-            {
                 return;
             }
 
@@ -181,8 +169,6 @@ namespace Blocks.Gameplay.Core
                 onStatDepleted.RegisterListener(HandleStatDepleted);
             }
 
-            // Hide session UI and lock cursor for gameplay
-            StartCoroutine(FadeOutAndDisable());
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
 
@@ -235,8 +221,6 @@ namespace Blocks.Gameplay.Core
                 onStatDepleted.RegisterListener(HandleStatDepleted);
             }
 
-            // Hide session UI and lock cursor for gameplay
-            StartCoroutine(FadeOutAndDisable());
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
 
@@ -472,34 +456,6 @@ namespace Blocks.Gameplay.Core
             }
         }
 
-        /// <summary>
-        /// Coroutine that smoothly fades out and hides the session UI.
-        /// Interpolates opacity from current value to 0 over the fade duration, then hides the UI completely.
-        /// </summary>
-        /// <returns>Enumerator for coroutine execution.</returns>
-        private IEnumerator FadeOutAndDisable()
-        {
-            if (sessionUI == null) yield break;
-
-            VisualElement root = sessionUI.rootVisualElement;
-            float startOpacity = root.resolvedStyle.opacity;
-
-            // Handle edge case where opacity is already near zero
-            if (startOpacity < 0.01f) startOpacity = 1f;
-
-            float elapsedTime = 0f;
-            while (elapsedTime < fadeDuration)
-            {
-                elapsedTime += Time.deltaTime;
-                float t = Mathf.Clamp01(elapsedTime / fadeDuration);
-                root.style.opacity = Mathf.Lerp(startOpacity, 0f, t);
-                yield return null;
-            }
-
-            // Ensure fully faded and hidden
-            root.style.opacity = 0f;
-            root.style.display = DisplayStyle.None;
-        }
 
         #endregion
     }
