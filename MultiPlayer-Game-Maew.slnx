@@ -3,7 +3,9 @@
   <Project Path="Blocks.Sessions.csproj" />
   <Project Path="Blocks.Gameplay.Shooter.csproj" />
   <Project Path="Blocks.Gameplay.Core.csproj" />
+  <Project Path="Assembly-CSharp.csproj" />
   <Project Path="PurrNet.Editor.csproj" />
+  <Project Path="Assembly-CSharp-Editor.csproj" />
   <Project Path="Unity.PurrNet.Codegen.csproj" />
   <Project Path="SimpleWebTransport.csproj" />
   <Project Path="Blocks.Gameplay.Platformer.csproj" />
@@ -11,8 +13,6 @@
   <Project Path="PurrNet.Edgegap.Runtime.csproj" />
   <Project Path="PurrNet.UTP.Runtime.csproj" />
   <Project Path="PurrNet.UTP.Editor.csproj" />
-  <Project Path="Assembly-CSharp-Editor.csproj" />
-  <Project Path="Assembly-CSharp.csproj" />
   <Project Path="PurrNet.DeltaPackerAnalysis.Editor.csproj" />
   <Project Path="PurrNet.Steam.Runtime.csproj" />
   <Project Path="Blocks.Sessions.Common.csproj" />
