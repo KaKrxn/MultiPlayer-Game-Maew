@@ -6,7 +6,10 @@ public class MainMenuManager : MonoBehaviour
 {
     [Header("Scene Names")]
     [SerializeField] private string roomSelectSceneName = "RoomSelect";
-    [SerializeField] private string settingsSceneName = "Settings";
+
+    [Header("Settings Panel")]
+    [SerializeField] private GameObject settingPanel;
+    [SerializeField] private SettingPanelUI settingPanelUI;
 
     [Header("Player Name")]
     [SerializeField] private PlayerNameInputPopup nameInputPopup;
@@ -16,6 +19,12 @@ public class MainMenuManager : MonoBehaviour
     {
         if (nameInputPopup == null)
             nameInputPopup = FindObjectOfType<PlayerNameInputPopup>(true);
+
+        if (settingPanelUI == null && settingPanel != null)
+            settingPanelUI = settingPanel.GetComponentInChildren<SettingPanelUI>(true);
+
+        if (settingPanel == null && settingPanelUI != null)
+            settingPanel = settingPanelUI.gameObject;
 
         if (renameButton != null)
             renameButton.onClick.AddListener(OnClickRename);
@@ -46,14 +55,28 @@ public class MainMenuManager : MonoBehaviour
 
     public void OnClickSettings()
     {
-        if (!string.IsNullOrEmpty(settingsSceneName))
+        if (settingPanelUI != null)
         {
-            SceneManager.LoadScene(settingsSceneName);
+            settingPanelUI.TogglePanel();
+            return;
         }
-        else
+
+        if (settingPanel != null)
         {
-            Debug.Log("Settings scene name is empty.");
+            bool shouldOpen = !settingPanel.activeSelf;
+            settingPanel.SetActive(shouldOpen);
+
+            if (shouldOpen)
+            {
+                SettingPanelUI panelUI = settingPanel.GetComponentInChildren<SettingPanelUI>(true);
+                if (panelUI != null)
+                    panelUI.Refresh();
+            }
+
+            return;
         }
+
+        Debug.LogWarning("Setting panel is not assigned.");
     }
 
     public void OnClickQuit()
