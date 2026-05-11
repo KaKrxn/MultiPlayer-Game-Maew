@@ -8290,9 +8290,9 @@ RectTransform:
   - {fileID: 1984925228}
   - {fileID: 558097681}
   - {fileID: 618496058}
-  - {fileID: 1318100051}
   - {fileID: 905442191}
   - {fileID: 252011062}
+  - {fileID: 1318100051}
   m_Father: {fileID: 1971630737}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
