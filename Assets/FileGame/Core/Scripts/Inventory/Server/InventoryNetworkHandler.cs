@@ -270,6 +270,38 @@ public class InventoryNetworkHandler : NetworkBehaviour
     }
 
     [ServerRpc]
+    public void RequestRemoveItemFromSlotServerRpc(int slotIndex, int amount, FixedString32Bytes expectedItemName)
+    {
+        if (!IsValidSlotIndex(slotIndex) || amount <= 0) return;
+
+        var slotData = _serverInventory[slotIndex];
+        if (slotData.isEmpty) return;
+
+        string expectedName = expectedItemName.ToString();
+        if (!string.IsNullOrEmpty(expectedName) && slotData.itemName.ToString() != expectedName)
+        {
+            UnityEngine.Debug.LogWarning($"[Inventory] Server rejected slot remove: slot {slotIndex} has '{slotData.itemName}', expected '{expectedName}'.");
+            return;
+        }
+
+        int removeAmount = Mathf.Clamp(amount, 1, Mathf.Max(1, slotData.stackCount));
+
+        ServerUtility.ApplyWeightToPlayer(OwnerClientId, -(slotData.weight * removeAmount));
+
+        if (slotData.stackCount > removeAmount)
+        {
+            slotData.stackCount -= removeAmount;
+            _serverInventory[slotIndex] = slotData;
+        }
+        else
+        {
+            _serverInventory[slotIndex] = NetworkInventorySlotData.Empty;
+        }
+
+        UnityEngine.Debug.Log($"[Inventory] Removed '{slotData.itemName}' x{removeAmount} from slot {slotIndex} for player {OwnerClientId}.");
+    }
+
+    [ServerRpc]
     public void RequestConsumeItemByNameServerRpc(FixedString32Bytes itemName, int amount)
     {
         if (amount <= 0) return;

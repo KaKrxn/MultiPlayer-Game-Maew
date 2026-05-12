@@ -23,6 +23,10 @@ namespace Blocks.Gameplay.Core
         [SerializeField] private float damageAmount = 10f;
         [SerializeField] private int jacketDurabilityDrain = 10;
 
+        [Header("Train Damage")]
+        [SerializeField] private TrainUpgradeSystem trainSystem;
+        [SerializeField] private float trainDamageAmount = 10f;
+
         [Header("Tornado Settings")]
         [SerializeField] private int tornadoCount = 4;
         [SerializeField] private float minSpawnRadius = 20f;   // ระยะขั้นต่ำจาก Player Center (ไม่ Spawn ชิด Player)
@@ -255,6 +259,28 @@ namespace Blocks.Gameplay.Core
 
             Debug.Log($"[StormEventManager] 💨 Damage tick | " +
                       $"Total={totalPlayers} | Safe={safePlayers} | Sent damage RPC={damagedPlayers}");
+
+            ApplyDamageToTrain();
+        }
+
+        private void ApplyDamageToTrain()
+        {
+            if (!IsServer || trainDamageAmount <= 0f) return;
+
+            if (trainSystem == null)
+                trainSystem = FindFirstObjectByType<TrainUpgradeSystem>();
+
+            if (trainSystem == null)
+            {
+                Debug.LogWarning("[StormEventManager] Train damage skipped: TrainUpgradeSystem not found.");
+                return;
+            }
+
+            float previousHealth = trainSystem.CurrentHealth;
+            trainSystem.ApplyDamage(trainDamageAmount);
+
+            Debug.Log($"[StormEventManager] Train damage tick | Damage={trainDamageAmount:0.#} | " +
+                      $"HP {previousHealth:0}/{trainSystem.MaxHealth:0} -> {trainSystem.CurrentHealth:0}/{trainSystem.MaxHealth:0}");
         }
 
         [ClientRpc]

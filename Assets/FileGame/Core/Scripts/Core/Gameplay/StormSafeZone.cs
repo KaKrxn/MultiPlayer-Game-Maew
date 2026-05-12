@@ -13,11 +13,12 @@ namespace Blocks.Gameplay.Core
     public class StormSafeZone : MonoBehaviour
     {
         private readonly HashSet<ulong> _playersInside = new HashSet<ulong>();
+        private Collider _zoneCollider;
 
         private void Awake()
         {
-            var col = GetComponent<Collider>();
-            if (col != null) col.isTrigger = true;
+            _zoneCollider = GetComponent<Collider>();
+            if (_zoneCollider != null) _zoneCollider.isTrigger = true;
         }
 
         private void OnEnable()
@@ -60,18 +61,53 @@ namespace Blocks.Gameplay.Core
             // GetComponentInParent ป้องกันกรณี Collider อยู่บน child object
             // แต่ NetworkObject อยู่บน root ของ player
             var netObj = other.GetComponentInParent<NetworkObject>();
-            if (netObj != null)
-                _playersInside.Add(netObj.OwnerClientId);
+            if (netObj != null && _playersInside.Add(netObj.OwnerClientId))
+                Debug.Log($"[StormSafeZone] Client {netObj.OwnerClientId} entered {gameObject.name}");
         }
 
         private void OnTriggerExit(Collider other)
         {
             var netObj = other.GetComponentInParent<NetworkObject>();
-            if (netObj != null)
-                _playersInside.Remove(netObj.OwnerClientId);
+            if (netObj != null && _playersInside.Remove(netObj.OwnerClientId))
+                Debug.Log($"[StormSafeZone] Client {netObj.OwnerClientId} exited {gameObject.name}");
         }
 
-        public bool IsPlayerInside(ulong clientId) => _playersInside.Contains(clientId);
+        public bool IsPlayerInside(ulong clientId) => _playersInside.Contains(clientId) || IsPlayerCurrentlyOverlapping(clientId);
         public int PlayerCount => _playersInside.Count;
+
+        private bool IsPlayerCurrentlyOverlapping(ulong clientId)
+        {
+            if (_zoneCollider == null ||
+                NetworkManager.Singleton == null ||
+                !NetworkManager.Singleton.ConnectedClients.TryGetValue(clientId, out var client) ||
+                client.PlayerObject == null)
+            {
+                return false;
+            }
+
+            Vector3 playerPosition = client.PlayerObject.transform.position;
+            if (_zoneCollider.bounds.Contains(playerPosition) ||
+                Vector3.Distance(_zoneCollider.ClosestPoint(playerPosition), playerPosition) <= 0.05f)
+            {
+                return true;
+            }
+
+            Collider[] playerColliders = client.PlayerObject.GetComponentsInChildren<Collider>(true);
+            for (int i = 0; i < playerColliders.Length; i++)
+            {
+                Collider playerCollider = playerColliders[i];
+                if (playerCollider == null || !playerCollider.enabled)
+                {
+                    continue;
+                }
+
+                if (_zoneCollider.bounds.Intersects(playerCollider.bounds))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
     }
 }

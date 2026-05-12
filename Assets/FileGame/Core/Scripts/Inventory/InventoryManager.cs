@@ -447,6 +447,69 @@ public class InventoryManager : MonoBehaviour
         RemoveAmountFromIndex(index, 1);
     }
 
+    public int GetSelectedQuickSlotItemCount(ItemData targetItem)
+    {
+        if (targetItem == null)
+        {
+            return 0;
+        }
+
+        int index = selectedQuickSlotIndex;
+        if (index < 0 || index >= _inventoryData.Length || index >= quickSlots.Count)
+        {
+            return 0;
+        }
+
+        var data = _inventoryData[index];
+        if (data.inventoryItem == null || !data.itemInstance.IsValid || !IsSameItemData(data.itemInstance.itemData, targetItem))
+        {
+            return 0;
+        }
+
+        return Mathf.Max(1, data.itemInstance.stackCount);
+    }
+
+    public bool HasSelectedQuickSlotItemAmount(ItemData targetItem, int amount)
+    {
+        return amount > 0 && GetSelectedQuickSlotItemCount(targetItem) >= amount;
+    }
+
+    public bool ConsumeSelectedQuickSlotItemAmount(ItemData targetItem, int amount)
+    {
+        if (targetItem == null || amount <= 0 || !HasSelectedQuickSlotItemAmount(targetItem, amount))
+        {
+            return false;
+        }
+
+        int index = selectedQuickSlotIndex;
+        if (index < 0 || index >= _inventoryData.Length || index >= quickSlots.Count)
+        {
+            return false;
+        }
+
+        if (_networkHandler != null)
+        {
+            _networkHandler.RequestRemoveItemFromSlotServerRpc(
+                index,
+                amount,
+                new FixedString32Bytes(targetItem.itemName));
+            return true;
+        }
+
+        RemoveAmountFromIndex(index, amount);
+        return true;
+    }
+
+    private static bool IsSameItemData(ItemData left, ItemData right)
+    {
+        if (left == null || right == null)
+        {
+            return false;
+        }
+
+        return left == right || left.itemName == right.itemName;
+    }
+
     public bool ConsumeItem(ItemData targetItem)
     {
         return ConsumeItemAmount(targetItem, 1);
