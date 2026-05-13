@@ -14,13 +14,10 @@ public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
 
     [SerializeField] private TMP_Text amountText;
 
-    
-
     private void Awake()
     {
         rectTransform = GetComponent<RectTransform>();
         canvasGroup = GetComponent<CanvasGroup>();
-        // หา Canvas ที่ใกล้ที่สุดเพื่อใช้คำนวณ Scale Factor เวลาลาก
         canvas = GetComponentInParent<Canvas>();
         itemImage = GetComponent<Image>();
     }
@@ -46,13 +43,12 @@ public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
     public void OnBeginDrag(PointerEventData eventData)
     {
         originalParent = transform.parent;
-        canvasGroup.blocksRaycasts = false; // ปิดเพื่อให้ Mouse ทะลุไปโดน Slot ข้างหลังได้
-        transform.SetParent(canvas.transform); // ย้ายมาอยู่ชั้นบนสุดของ Canvas เวลาลาก
+        canvasGroup.blocksRaycasts = false;
+        transform.SetParent(canvas.transform);
     }
 
     public void OnDrag(PointerEventData eventData)
     {
-        // คำนวณตำแหน่งตามเมาส์ โดยหารด้วย scaleFactor เพื่อให้ตำแหน่งตรงกับเมาส์พอดี
         rectTransform.anchoredPosition += eventData.delta / canvas.scaleFactor;
     }
 
@@ -60,11 +56,9 @@ public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
     {
         canvasGroup.blocksRaycasts = true;
 
-        // ถ้าไม่ได้ปล่อยลงใน Slot (หรือ PointerEnter ไม่ใช่ Slot) ให้กลับไปที่เดิม
         if (eventData.pointerEnter == null || eventData.pointerEnter.GetComponent<InventorySlot>() == null)
         {
-            transform.SetParent(originalParent);
-            SetAvailable();
+            ReturnToOriginalParent();
         }
     }
 
@@ -75,19 +69,26 @@ public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
 
         if (!InstanceHandler.TryGetInstance(out InventoryManager inventoryManager))
         {
-            Debug.LogError($"Failed to get inventory manager to drop item!");
+            Debug.LogError("Failed to get inventory manager to drop item!");
             return;
         }
 
         inventoryManager.DropItem(this);
     }
 
-    // ฟังก์ชันช่วยสำหรับรีเซ็ตตำแหน่งเมื่อวางสำเร็จ (เรียกจาก InventorySlot)
     public void SetAvailable()
     {
         canvasGroup.blocksRaycasts = true;
         rectTransform.anchoredPosition = Vector2.zero;
     }
 
-    
+    public void ReturnToOriginalParent()
+    {
+        if (originalParent != null)
+        {
+            transform.SetParent(originalParent);
+        }
+
+        SetAvailable();
+    }
 }

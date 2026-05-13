@@ -38,18 +38,49 @@ public class InteractionManager : NetworkBehaviour
 
                 if (interactables != null)
                 {
-                    foreach (var interactable in interactables)
+                    if (hit.collider.gameObject.CompareTag("Vault"))
                     {
-                        if (interactable.CanInteract())
+                        OpenVault(hit.collider.gameObject);
+                    
+                    } else {
+                        foreach (var interactable in interactables)
                         {
-                            interactable.Interact();
-                            break;
+                            if (interactable.CanInteract())
+                            {
+                                interactable.Interact();
+                                break;
+                            }
                         }
                     }
+                    
                 }
+
             }
         }
     }
+
+
+    private void OpenVault(GameObject vaultObject)
+    {
+        if (vaultObject == null) return;
+
+        if (!vaultObject.CompareTag("Vault")) return;
+
+        VaultInventory vault = vaultObject.GetComponent<VaultInventory>();
+        if (vault == null)
+        {
+            vault = vaultObject.GetComponentInParent<VaultInventory>();
+        }
+
+        if (vault == null)
+        {
+            Debug.LogWarning("Vault object has no VaultInventory component.");
+            return;
+        }
+
+        vault.Interact();
+    }
+
 
 
     private void HandleHovers()

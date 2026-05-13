@@ -3,31 +3,32 @@ using System;
 using System.Collections.Generic;
 using PurrNet;
 using PurrNet.Utils;
-using System.Diagnostics;
-using System.Numerics;
 
 public class InventoryManager : MonoBehaviour
 {
     [Header("UI Setup")]
-    [Tooltip("ใส่ Canvas Group ของ MainInventoryPanel (คุมเฉพาะกระเป๋าหลัก)")]
     [SerializeField] private CanvasGroup mainInventoryGroup;
+    [SerializeField] private CanvasGroup secondaryInventoryGroup;
 
     public GameObject itemPrefab;
 
     [Header("UI Slots Setup")]
     public List<InventorySlot> quickSlots = new List<InventorySlot>();
     public List<InventorySlot> mainSlots = new List<InventorySlot>();
+    public List<InventorySlot> vaultSlots = new List<InventorySlot>();
 
     [HideInInspector] public List<InventorySlot> allSlots = new List<InventorySlot>();
 
     [PurrReadOnly, SerializeField] private InventoryItemData[] _inventoryData;
+    [PurrReadOnly, SerializeField] private InventoryItemData[] _vaultInventoryData;
 
     public static InventoryManager instance;
+
+    public VaultInventory ActiveVault { get; private set; }
 
     public List<InventoryItemData> inventoryData = new List<InventoryItemData>();
     public List<Item> allItems = new List<Item>();
 
-    // ตัวแปรจำว่าตอนนี้เลือก Quick Slot ช่องไหนอยู่ (เริ่มที่ช่อง 0)
     public int selectedQuickSlotIndex = 0;
 
     private void Awake()
@@ -48,63 +49,93 @@ public class InventoryManager : MonoBehaviour
         allSlots.AddRange(mainSlots);
 
         _inventoryData = new InventoryItemData[allSlots.Count];
+        _vaultInventoryData = new InventoryItemData[vaultSlots.Count];
     }
 
     private void Start()
     {
         ToggleInventory(false);
+        ToggleSecondaryInventory(false);
         ToggleCursor(true);
-
-        // เริ่มเกมมาให้เลือกช่องที่ 1 (Index 0) ไว้ก่อน
         SelectQuickSlot(0);
     }
 
     private void Update()
     {
-        // เปิด/ปิด กระเป๋าหลัก
         if (Input.GetKeyDown(KeyCode.Tab))
         {
-            bool isOpen = mainInventoryGroup.alpha > 0;
-            ToggleInventory(!isOpen);
+            bool isOpen = mainInventoryGroup != null && mainInventoryGroup.alpha > 0;
+
+            if (ActiveVault != null && isOpen)
+            {
+                CloseVault();
+            }
+            else
+            {
+                ToggleInventory(!isOpen);
+            }
         }
 
-        // ระบบเลื่อนเลือกช่อง Quick Slots (1-5)
         if (Input.GetKeyDown(KeyCode.Alpha1)) SelectQuickSlot(0);
         if (Input.GetKeyDown(KeyCode.Alpha2)) SelectQuickSlot(1);
         if (Input.GetKeyDown(KeyCode.Alpha3)) SelectQuickSlot(2);
         if (Input.GetKeyDown(KeyCode.Alpha4)) SelectQuickSlot(3);
         if (Input.GetKeyDown(KeyCode.Alpha5)) SelectQuickSlot(4);
 
-        // ระบบโยนของทิ้งจาก Quick Slot ที่เลือกอยู่
         if (Input.GetKeyDown(KeyCode.G))
         {
             DropItemFromIndex(selectedQuickSlotIndex);
         }
     }
 
-    // ฟังก์ชันสำหรับเลือกและไฮไลต์ Quick Slot
     private void SelectQuickSlot(int index)
     {
         if (index < 0 || index >= quickSlots.Count) return;
         selectedQuickSlotIndex = index;
 
-        // วนลูปเพื่อปรับ UI (ช่องที่เลือกจะขยายใหญ่ 1.15 เท่า, ช่องอื่นขนาดปกติ)
         for (int i = 0; i < quickSlots.Count; i++)
         {
             if (quickSlots[i] != null)
             {
-                quickSlots[i].transform.localScale = (i == selectedQuickSlotIndex) ? new UnityEngine.Vector3(1.15f, 1.15f, 1.15f) : UnityEngine.Vector3.one;
+                quickSlots[i].transform.localScale = (i == selectedQuickSlotIndex)
+                    ? new Vector3(1.15f, 1.15f, 1.15f)
+                    : Vector3.one;
             }
         }
     }
 
-    // ฟังก์ชันสั่ง Drop ของโดยอิงจาก Index
+    public void OpenVault(VaultInventory vault)
+    {
+        if (vault == null) return;
+
+        CloseVault();
+
+        ActiveVault = vault;
+        _vaultInventoryData = ActiveVault.GetData(vaultSlots.Count);
+
+        LoadVaultItems();
+        ToggleInventory(true);
+        ToggleSecondaryInventory(true);
+    }
+
+    public void CloseVault()
+    {
+        if (ActiveVault != null)
+        {
+            SaveVaultItems();
+        }
+
+        ClearVaultUI();
+        ActiveVault = null;
+        _vaultInventoryData = new InventoryItemData[vaultSlots.Count];
+        ToggleSecondaryInventory(false);
+    }
+
     public void DropItemFromIndex(int index)
     {
         if (index < 0 || index >= _inventoryData.Length) return;
 
         var data = _inventoryData[index];
-        // เช็คว่าช่องนั้นมีไอเทมอยู่จริงๆ ค่อยทิ้ง
         if (data.inventoryItem != null && data.amount > 0)
         {
             DropItem(data.inventoryItem);
@@ -113,7 +144,6 @@ public class InventoryManager : MonoBehaviour
 
     private void ToggleInventory(bool toggle)
     {
-        // เปลี่ยนมาคุมตัว mainInventoryGroup แทน
         if (mainInventoryGroup != null)
         {
             mainInventoryGroup.alpha = toggle ? 1f : 0f;
@@ -122,6 +152,15 @@ public class InventoryManager : MonoBehaviour
         }
 
         ToggleCursor(toggle);
+    }
+
+    private void ToggleSecondaryInventory(bool toggle)
+    {
+        if (secondaryInventoryGroup == null) return;
+
+        secondaryInventoryGroup.alpha = toggle ? 1f : 0f;
+        secondaryInventoryGroup.blocksRaycasts = toggle;
+        secondaryInventoryGroup.interactable = toggle;
     }
 
     private void ToggleCursor(bool toggle)
@@ -194,59 +233,64 @@ public class InventoryManager : MonoBehaviour
         }
     }
 
-    public void ItemMoved(InventoryItem item, InventorySlot newSlot)
+    public bool ItemMoved(InventoryItem item, InventorySlot newSlot)
     {
-        var newSlotIndex = allSlots.IndexOf(newSlot);
-        var oldSlotIndex = Array.FindIndex(_inventoryData, x => x.inventoryItem == item);
+        if (!TryGetItemLocation(item, out var oldData, out int oldIndex, out InventorySlot oldSlot)) return false;
+        if (!TryGetSlotLocation(newSlot, out var newData, out int newIndex)) return false;
 
-        if (oldSlotIndex == -1 || newSlotIndex == -1) return;
+        if (oldData == newData && oldIndex == newIndex) return true;
+        if (newData[newIndex].inventoryItem != null) return false;
 
-        var temp = _inventoryData[newSlotIndex];
-        _inventoryData[newSlotIndex] = _inventoryData[oldSlotIndex];
-        _inventoryData[oldSlotIndex] = temp;
+        newData[newIndex] = oldData[oldIndex];
+        oldData[oldIndex] = default;
+
+        oldSlot.SetItem(null);
+        newSlot.SetItem(item);
+
+        return true;
     }
 
     public void DropItem(InventoryItem inventoryItem)
     {
-        for (int i = 0; i < _inventoryData.Length; i++)
+        if (!TryGetItemLocation(inventoryItem, out var dataSource, out int index, out InventorySlot slot)) return;
+
+        var data = dataSource[index];
+        var itemToSpawn = allItems.Find(x => x.ItemName == data.itemName);
+        if (itemToSpawn == null) return;
+
+        Vector3 spawnPosition = PlayerLocation.localPlayerMovement.transform.position
+            + PlayerLocation.localPlayerMovement.transform.forward
+            + Vector3.up;
+
+        if (PlayerDropItem.Instance != null)
         {
-            var data = _inventoryData[i];
-            if (data.inventoryItem != inventoryItem) continue;
-
-            var itemToSpawn = allItems.Find(x => x.ItemName == data.itemName);
-            if (itemToSpawn == null) return;
-
-            UnityEngine.Vector3 spawnPosition = PlayerLocation.localPlayerMovement.transform.position + PlayerLocation.localPlayerMovement.transform.forward + (UnityEngine.Vector3.up);
-
-            if (PlayerDropItem.Instance != null)
-            {
-                PlayerDropItem.Instance.RequestSpawnItemServerRpc(data.itemName, spawnPosition, UnityEngine.Quaternion.identity);
-            }
-
-            DeductItem(inventoryItem);
-            break;
+            PlayerDropItem.Instance.RequestSpawnItemServerRpc(data.itemName, spawnPosition, Quaternion.identity);
         }
+
+        DeductItem(dataSource, index, slot, inventoryItem);
     }
 
     private void DeductItem(InventoryItem inventoryItem)
     {
-        for (int i = 0; i < _inventoryData.Length; i++)
-        {
-            var data = _inventoryData[i];
-            if (data.inventoryItem != inventoryItem) continue;
+        if (!TryGetItemLocation(inventoryItem, out var dataSource, out int index, out InventorySlot slot)) return;
+        DeductItem(dataSource, index, slot, inventoryItem);
+    }
 
-            data.amount--;
-            if (data.amount <= 0)
-            {
-                _inventoryData[i] = default;
-                allSlots[i].SetItem(null);
-                Destroy(inventoryItem.gameObject);
-            }
-            else
-            {
-                data.inventoryItem.Init(data.itemName, data.ItemPicture, data.amount);
-                _inventoryData[i] = data;
-            }
+    private void DeductItem(InventoryItemData[] dataSource, int index, InventorySlot slot, InventoryItem inventoryItem)
+    {
+        var data = dataSource[index];
+        data.amount--;
+
+        if (data.amount <= 0)
+        {
+            dataSource[index] = default;
+            slot.SetItem(null);
+            Destroy(inventoryItem.gameObject);
+        }
+        else
+        {
+            data.inventoryItem.Init(data.itemName, data.ItemPicture, data.amount);
+            dataSource[index] = data;
         }
     }
 
@@ -261,6 +305,100 @@ public class InventoryManager : MonoBehaviour
             }
         }
         return false;
+    }
+
+    private bool TryGetItemLocation(InventoryItem item, out InventoryItemData[] dataSource, out int index, out InventorySlot slot)
+    {
+        index = Array.FindIndex(_inventoryData, x => x.inventoryItem == item);
+        if (index != -1)
+        {
+            dataSource = _inventoryData;
+            slot = allSlots[index];
+            return true;
+        }
+
+        index = Array.FindIndex(_vaultInventoryData, x => x.inventoryItem == item);
+        if (index != -1)
+        {
+            dataSource = _vaultInventoryData;
+            slot = vaultSlots[index];
+            return true;
+        }
+
+        dataSource = null;
+        slot = null;
+        return false;
+    }
+
+    private bool TryGetSlotLocation(InventorySlot targetSlot, out InventoryItemData[] dataSource, out int index)
+    {
+        index = allSlots.IndexOf(targetSlot);
+        if (index != -1)
+        {
+            dataSource = _inventoryData;
+            return true;
+        }
+
+        index = vaultSlots.IndexOf(targetSlot);
+        if (index != -1 && ActiveVault != null)
+        {
+            dataSource = _vaultInventoryData;
+            return true;
+        }
+
+        dataSource = null;
+        return false;
+    }
+
+    private void LoadVaultItems()
+    {
+        ClearVaultUI();
+
+        for (int i = 0; i < vaultSlots.Count && i < _vaultInventoryData.Length; i++)
+        {
+            var data = _vaultInventoryData[i];
+            if (string.IsNullOrEmpty(data.itemName) || data.amount <= 0)
+            {
+                vaultSlots[i].SetItem(null);
+                continue;
+            }
+
+            var newItem = Instantiate(itemPrefab, vaultSlots[i].transform).GetComponent<InventoryItem>();
+            newItem.Init(data.itemName, data.ItemPicture, data.amount);
+
+            data.inventoryItem = newItem;
+            _vaultInventoryData[i] = data;
+            vaultSlots[i].SetItem(newItem);
+        }
+    }
+
+    private void SaveVaultItems()
+    {
+        if (ActiveVault == null || _vaultInventoryData == null) return;
+
+        for (int i = 0; i < _vaultInventoryData.Length; i++)
+        {
+            var data = _vaultInventoryData[i];
+            data.inventoryItem = null;
+            _vaultInventoryData[i] = data;
+        }
+
+        ActiveVault.SetData(_vaultInventoryData);
+    }
+
+    private void ClearVaultUI()
+    {
+        foreach (var slot in vaultSlots)
+        {
+            if (slot == null) continue;
+
+            for (int i = slot.transform.childCount - 1; i >= 0; i--)
+            {
+                Destroy(slot.transform.GetChild(i).gameObject);
+            }
+
+            slot.SetItem(null);
+        }
     }
 
     [System.Serializable]
