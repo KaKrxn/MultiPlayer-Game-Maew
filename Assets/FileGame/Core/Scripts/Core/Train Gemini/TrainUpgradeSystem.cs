@@ -45,9 +45,15 @@ public class TrainUpgradeSystem : NetworkBehaviour
     [Header("References")]
     [SerializeField] private AutomatedNetworkTransform trainMovement;
     [SerializeField] private TrainFuelSystem fuelSystem;
+    [SerializeField] private Transform repairAnchor;
     [SerializeField] private Transform visualAnchor;
     [SerializeField] private GameObject defaultVisualRoot;
     [SerializeField] private ItemData scrapMetalItem;
+
+    [Header("Repair Settings")]
+    [SerializeField] private int scrapMetalCostPerRepair = 1;
+    [SerializeField] private float repairAmountPerUse = 25f;
+    [SerializeField] private float repairRange = 3f;
 
     [Header("Upgrade Levels")]
     [SerializeField] private TrainUpgradeLevel[] levels =
@@ -105,8 +111,18 @@ public class TrainUpgradeSystem : NetworkBehaviour
     public bool HasReachedMaxLevel => MaxLevelCount == 0 || m_CurrentLevelIndex.Value >= MaxLevelCount - 1;
     public bool IsTrainStopped => trainMovement == null || trainMovement.IsTrainStopped;
     public bool CanUpgradeNow => !HasReachedMaxLevel && IsTrainStopped;
+    public bool CanRepairNow => MaxHealth > 0f && CurrentHealth < MaxHealth;
+    public int ScrapMetalCostPerRepair => Mathf.Max(1, scrapMetalCostPerRepair);
+    public float RepairAmountPerUse => Mathf.Max(0f, repairAmountPerUse);
+    public float RepairRange => Mathf.Max(0f, repairRange);
     public float CurrentFuel => fuelSystem != null ? fuelSystem.CurrentFuel : 0f;
     public float MaxFuel => fuelSystem != null ? fuelSystem.MaxFuel : 0f;
+
+    internal void RegisterRepairAnchor(Transform anchor)
+    {
+        if (repairAnchor == null && anchor != null)
+            repairAnchor = anchor;
+    }
 
     public override void OnNetworkSpawn()
     {
@@ -128,6 +144,21 @@ public class TrainUpgradeSystem : NetworkBehaviour
     {
         m_CurrentLevelIndex.OnValueChanged -= HandleLevelChanged;
         base.OnNetworkDespawn();
+    }
+
+    private void Update()
+    {
+        if (!IsServer || trainMovement == null) return;
+
+        if (m_CurrentHealth.Value <= 0f && trainMovement.IsMoving)
+            trainMovement.SetTrainMoving(false);
+    }
+
+    private void OnValidate()
+    {
+        scrapMetalCostPerRepair = Mathf.Max(1, scrapMetalCostPerRepair);
+        repairAmountPerUse = Mathf.Max(0f, repairAmountPerUse);
+        repairRange = Mathf.Max(0f, repairRange);
     }
 
     public int GetRequiredScrapForNextLevel()
@@ -218,7 +249,77 @@ public class TrainUpgradeSystem : NetworkBehaviour
     {
         if (!IsServer || damageAmount <= 0f) return;
 
+        if (m_CurrentHealth.Value <= 0f) return;
+
         m_CurrentHealth.Value = Mathf.Max(0f, m_CurrentHealth.Value - damageAmount);
+
+        if (m_CurrentHealth.Value <= 0f)
+        {
+            StopTrainFromDamage();
+        }
+    }
+
+    public void Repair(float amount)
+    {
+        if (!IsServer || amount <= 0f || MaxHealth <= 0f) return;
+
+        m_CurrentHealth.Value = Mathf.Clamp(m_CurrentHealth.Value + amount, 0f, MaxHealth);
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    public void RequestRepairServerRpc(int clientReportedScrap, ServerRpcParams rpcParams = default)
+    {
+        ulong senderId = rpcParams.Receive.SenderClientId;
+        Debug.Log($"[TrainRepair] Request received | Player={senderId} | ReportedScrap={clientReportedScrap} | HP={CurrentHealth:0}/{MaxHealth:0}");
+
+        if (!CanRepairNow)
+        {
+            Debug.LogWarning($"[TrainRepair] Player {senderId} repair rejected: train cannot repair now. HP={CurrentHealth:0}/{MaxHealth:0}");
+            return;
+        }
+
+        int requiredScrap = ScrapMetalCostPerRepair;
+        if (clientReportedScrap < requiredScrap)
+        {
+            Debug.LogWarning($"[TrainRepair] Player {senderId} tried to repair but reported {clientReportedScrap}/{requiredScrap} scrap. Rejected.");
+            return;
+        }
+
+        if (!IsPlayerInRepairRange(senderId))
+        {
+            Debug.LogWarning($"[TrainRepair] Player {senderId} tried to repair outside range. Rejected.");
+            return;
+        }
+
+        float previousHealth = m_CurrentHealth.Value;
+        Repair(RepairAmountPerUse);
+
+        if (m_CurrentHealth.Value <= previousHealth)
+        {
+            return;
+        }
+
+        ClientRpcParams clientRpcParams = new ClientRpcParams
+        {
+            Send = new ClientRpcSendParams
+            {
+                TargetClientIds = new[] { senderId }
+            }
+        };
+
+        ConsumeRepairScrapClientRpc(requiredScrap, clientRpcParams);
+        Debug.Log($"[TrainRepair] Player {senderId} repaired train: {previousHealth:0}/{MaxHealth:0} -> {m_CurrentHealth.Value:0}/{MaxHealth:0}");
+    }
+
+    [ClientRpc]
+    private void ConsumeRepairScrapClientRpc(int scrapAmount, ClientRpcParams clientRpcParams = default)
+    {
+        if (scrapMetalItem == null || InventoryManager.instance == null || scrapAmount <= 0)
+        {
+            return;
+        }
+
+        InventoryManager.instance.ConsumeSelectedQuickSlotItemAmount(scrapMetalItem, scrapAmount);
     }
 
     [ServerRpc(RequireOwnership = false)]
@@ -301,6 +402,42 @@ public class TrainUpgradeSystem : NetworkBehaviour
         }
 
         ApplyVisualForLevel(levelIndex);
+    }
+
+    private void StopTrainFromDamage()
+    {
+        if (trainMovement != null)
+        {
+            trainMovement.SetTrainMoving(false);
+        }
+
+        Debug.LogWarning("[TrainHealth] Train HP reached 0. Train stopped.");
+    }
+
+    private bool IsPlayerInRepairRange(ulong clientId)
+    {
+        if (NetworkManager.Singleton == null ||
+            !NetworkManager.Singleton.ConnectedClients.TryGetValue(clientId, out var client) ||
+            client.PlayerObject == null)
+        {
+            return false;
+        }
+
+        float maxDistance = RepairRange;
+        if (maxDistance <= 0f)
+        {
+            return true;
+        }
+
+        Vector3 center = repairAnchor != null ? repairAnchor.position : transform.position;
+        float distance = Vector3.Distance(client.PlayerObject.transform.position, center);
+        bool inRange = distance <= maxDistance;
+        if (!inRange)
+        {
+            Debug.LogWarning($"[TrainRepair] Player {clientId} distance={distance:0.00}, required<={maxDistance:0.00}. Anchor={(repairAnchor != null ? repairAnchor.name : name)}");
+        }
+
+        return inRange;
     }
 
     private void ApplyVisualForLevel(int levelIndex)

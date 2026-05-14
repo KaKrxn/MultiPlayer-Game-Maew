@@ -106,6 +106,8 @@ namespace Blocks.Gameplay.Core
         {
             base.OnNetworkSpawn();
 
+            Debug.Log($"[CorePlayerManager] OnNetworkSpawn | Name={name} | NetworkObjectId={NetworkObjectId} | Owner={OwnerClientId} | LocalClientId={NetworkManager.LocalClientId} | IsServer={IsServer} IsClient={IsClient} IsOwner={IsOwner} IsLocalPlayer={IsLocalPlayer} | pos={transform.position} | scene={gameObject.scene.name}", this);
+
             if (IsOwner)
             {
                 RegisterEventListeners();
@@ -137,6 +139,8 @@ namespace Blocks.Gameplay.Core
 
         public override void OnNetworkDespawn()
         {
+            Debug.Log($"[CorePlayerManager] OnNetworkDespawn | Name={name} | NetworkObjectId={NetworkObjectId} | Owner={OwnerClientId} | LocalClientId={(NetworkManager != null ? NetworkManager.LocalClientId.ToString() : "null")} | pos={transform.position}", this);
+
             if (corePlayerState != null)
             {
                 corePlayerState.OnNameChanged -= HandlePlayerNameChanged;
@@ -278,7 +282,15 @@ namespace Blocks.Gameplay.Core
                     Debug.LogWarning("[CorePlayerManager] corePlayerState is null in HandleStatDepleted");
                     return;
                 }
+                
+                // Set life state to eliminated
                 corePlayerState.SetLifeState(PlayerLifeState.Eliminated);
+
+                // Trigger PlayerAction death (graveyard teleport and spectating)
+                if (PlayerAction.instance != null)
+                {
+                    PlayerAction.instance.LocalDie();
+                }
             }
         }
 

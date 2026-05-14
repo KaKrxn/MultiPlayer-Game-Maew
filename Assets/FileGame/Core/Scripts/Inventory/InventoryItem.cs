@@ -25,7 +25,7 @@ public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
 
     private static Sprite s_DefaultSprite;
 
-    public ItemInstanceData InstanceData { get; private set; }
+    public ItemInstanceData InstanceData { get; internal set; }
     public ItemData Data => InstanceData.itemData;
 
     private void Awake()
@@ -400,5 +400,10 @@ public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
             rectTransform.anchoredPosition = Vector2.zero;
             rectTransform.localScale = Vector3.one;
         }
+    }
+
+    public void RefreshStatDisplay()
+    {
+        UpdateStatUI();
     }
 }

@@ -447,6 +447,69 @@ public class InventoryManager : MonoBehaviour
         RemoveAmountFromIndex(index, 1);
     }
 
+    public int GetSelectedQuickSlotItemCount(ItemData targetItem)
+    {
+        if (targetItem == null)
+        {
+            return 0;
+        }
+
+        int index = selectedQuickSlotIndex;
+        if (index < 0 || index >= _inventoryData.Length || index >= quickSlots.Count)
+        {
+            return 0;
+        }
+
+        var data = _inventoryData[index];
+        if (data.inventoryItem == null || !data.itemInstance.IsValid || !IsSameItemData(data.itemInstance.itemData, targetItem))
+        {
+            return 0;
+        }
+
+        return Mathf.Max(1, data.itemInstance.stackCount);
+    }
+
+    public bool HasSelectedQuickSlotItemAmount(ItemData targetItem, int amount)
+    {
+        return amount > 0 && GetSelectedQuickSlotItemCount(targetItem) >= amount;
+    }
+
+    public bool ConsumeSelectedQuickSlotItemAmount(ItemData targetItem, int amount)
+    {
+        if (targetItem == null || amount <= 0 || !HasSelectedQuickSlotItemAmount(targetItem, amount))
+        {
+            return false;
+        }
+
+        int index = selectedQuickSlotIndex;
+        if (index < 0 || index >= _inventoryData.Length || index >= quickSlots.Count)
+        {
+            return false;
+        }
+
+        if (_networkHandler != null)
+        {
+            _networkHandler.RequestRemoveItemFromSlotServerRpc(
+                index,
+                amount,
+                new FixedString32Bytes(targetItem.itemName));
+            return true;
+        }
+
+        RemoveAmountFromIndex(index, amount);
+        return true;
+    }
+
+    private static bool IsSameItemData(ItemData left, ItemData right)
+    {
+        if (left == null || right == null)
+        {
+            return false;
+        }
+
+        return left == right || left.itemName == right.itemName;
+    }
+
     public bool ConsumeItem(ItemData targetItem)
     {
         return ConsumeItemAmount(targetItem, 1);
@@ -704,6 +767,58 @@ public class InventoryManager : MonoBehaviour
         {
             Destroy(inventoryItem.gameObject);
         }
+    }
+
+    public bool TryConsumeJacketDurability(int dmgAmount)
+    {
+        bool found = false;
+        for (int i = 0; i < _inventoryData.Length; i++)
+        {
+            var data = _inventoryData[i];
+            if (data.inventoryItem == null || !data.itemInstance.IsValid) continue;
+            if (data.itemInstance.itemData.itemType != ItemType.Clothing) continue;
+
+            found = true;
+            int newDur = Mathf.Clamp(data.itemInstance.durabilityPercent - dmgAmount, 0, 100);
+
+            var updated = data.itemInstance;
+            updated.durabilityPercent = newDur;
+            _inventoryData[i] = new InventoryItemData
+            {
+                itemInstance = updated,
+                inventoryItem = data.inventoryItem
+            };
+            data.inventoryItem.SetInstanceData(updated);
+
+            if (newDur <= 0)
+            {
+                DeductItem(data.inventoryItem);
+                continue;
+            }
+
+            break;
+        }
+
+        return found;
+    }
+
+    public void RefreshItemDurabilityUI(int slotIndex)
+    {
+        if (slotIndex < 0 || slotIndex >= _inventoryData.Length) return;
+        _inventoryData[slotIndex].inventoryItem?.RefreshStatDisplay();
+    }
+
+    public bool HasJacketInInventory()
+    {
+        for (int i = 0; i < _inventoryData.Length; i++)
+        {
+            var d = _inventoryData[i];
+            if (d.inventoryItem == null || !d.itemInstance.IsValid) continue;
+            if (d.itemInstance.itemData.itemType == ItemType.Clothing
+                && d.itemInstance.durabilityPercent > 0) return true;
+        }
+
+        return false;
     }
 
     [System.Serializable]

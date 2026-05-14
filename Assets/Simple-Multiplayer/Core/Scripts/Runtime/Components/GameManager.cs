@@ -30,11 +30,6 @@ namespace Blocks.Gameplay.Core
         [Tooltip("Configuration settings for the multiplayer session.")]
         [SerializeField] private SessionSettings sessionSettings;
 
-        [Tooltip("UI Document that displays session/lobby interface.")]
-        [SerializeField] private UIDocument sessionUI;
-
-        [Tooltip("Duration in seconds for the session UI fade-out animation.")]
-        [SerializeField] private float fadeDuration = 0.5f;
 
         [Header("Game Rules")]
         [Tooltip("Time in seconds before the local player respawns.")]
@@ -105,16 +100,9 @@ namespace Blocks.Gameplay.Core
             DontDestroyOnLoad(gameObject);
 
             // Validate required references
-            if (sessionUI == null)
-            {
-                Debug.LogError("[GameManager] SessionUI is not assigned.", this);
-            }
             if (sessionSettings == null)
             {
                 Debug.LogError("[GameManager] SessionSettings is not assigned.", this);
-            }
-            if (sessionUI == null || sessionSettings == null)
-            {
                 return;
             }
 
@@ -166,8 +154,8 @@ namespace Blocks.Gameplay.Core
 
         /// <summary>
         /// Handles client connection events.
-        /// Sets up the local player when they connect, including registering event listeners,
-        /// hiding the session UI, setting player name, spawning at initial position, and restoring health.
+        /// Sets up local-only gameplay state when the local client connects.
+        /// Player spawn position and initial stats are owned by PlayerSpawnManager/CoreStatsHandler.
         /// </summary>
         /// <param name="clientId">The ID of the client that connected.</param>
         private void ClientConnected(ulong clientId)
@@ -181,8 +169,6 @@ namespace Blocks.Gameplay.Core
                 onStatDepleted.RegisterListener(HandleStatDepleted);
             }
 
-            // Hide session UI and lock cursor for gameplay
-            StartCoroutine(FadeOutAndDisable());
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
 
@@ -205,44 +191,8 @@ namespace Blocks.Gameplay.Core
                 }
             }
 
-            // Setup player spawn position and health
-            if (NetworkManager.Singleton != null && NetworkManager.Singleton.LocalClient != null)
-            {
-                var localPlayer = NetworkManager.Singleton.LocalClient.PlayerObject;
-                if (localPlayer == null)
-                {
-                    Debug.LogWarning("[GameManager] LocalClient.PlayerObject is null. Cannot setup player.", this);
-                    return;
-                }
-
-                // Set spawn position and rotation based on client ID
-                if (localPlayer.TryGetComponent<CoreMovement>(out var movement))
-                {
-                    Vector3 spawnPos = GetSpawnPosition(NetworkManager.Singleton.LocalClientId);
-                    int index = GetSpawnIndex(NetworkManager.Singleton.LocalClientId);
-                    if (index >= 0 && spawnPoints != null && spawnPoints.Count > index)
-                    {
-                        movement.transform.rotation = spawnPoints[index].rotation;
-                    }
-
-                    movement.SetPosition(spawnPos);
-                    movement.ResetMovementForces();
-                }
-                else
-                {
-                    Debug.LogWarning("[GameManager] CoreMovement component not found on local player. Cannot set spawn position.", this);
-                }
-
-                // Restore full health on spawn
-                if (localPlayer.TryGetComponent<CoreStatsHandler>(out var coreStats))
-                {
-                    coreStats.ModifyStat(StatKeys.Health, 100, NetworkManager.Singleton.LocalClientId, ModificationSource.Regeneration);
-                }
-                else
-                {
-                    Debug.LogWarning("[GameManager] CoreStatsHandler component not found on local player. Cannot restore health.", this);
-                }
-            }
+            // Initial player spawn and health are handled by PlayerSpawnManager
+            // and CoreStatsHandler during network spawn.
         }
 
         #endregion
@@ -271,54 +221,14 @@ namespace Blocks.Gameplay.Core
                 onStatDepleted.RegisterListener(HandleStatDepleted);
             }
 
-            // Hide session UI and lock cursor for gameplay
-            StartCoroutine(FadeOutAndDisable());
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
 
             // Set player name from session properties
             SetupLocalPlayerName(session);
 
-            if (NetworkManager.Singleton == null || NetworkManager.Singleton.LocalClient == null)
-            {
-                Debug.LogWarning("[GameManager] NetworkManager.Singleton or LocalClient is null during session setup.", this);
-                return;
-            }
-
-            var localPlayer = NetworkManager.Singleton.LocalClient.PlayerObject;
-            if (localPlayer == null)
-            {
-                Debug.LogWarning("[GameManager] LocalClient.PlayerObject is null. Cannot setup player.", this);
-                return;
-            }
-
-            // Set spawn position and rotation based on client ID
-            if (localPlayer.TryGetComponent<CoreMovement>(out var movement))
-            {
-                Vector3 spawnPos = GetSpawnPosition(NetworkManager.Singleton.LocalClientId);
-                int index = GetSpawnIndex(NetworkManager.Singleton.LocalClientId);
-                if (index >= 0 && spawnPoints != null && spawnPoints.Count > index)
-                {
-                    movement.transform.rotation = spawnPoints[index].rotation;
-                }
-
-                movement.SetPosition(spawnPos);
-                movement.ResetMovementForces();
-            }
-            else
-            {
-                Debug.LogWarning("[GameManager] CoreMovement component not found on local player. Cannot set spawn position.", this);
-            }
-
-            // Restore full health on spawn
-            if (localPlayer.TryGetComponent<CoreStatsHandler>(out var coreStats))
-            {
-                coreStats.ModifyStat(StatKeys.Health, 100, NetworkManager.Singleton.LocalClientId, ModificationSource.Regeneration);
-            }
-            else
-            {
-                Debug.LogWarning("[GameManager] CoreStatsHandler component not found on local player. Cannot restore health.", this);
-            }
+            // Initial player spawn and health are handled by PlayerSpawnManager
+            // and CoreStatsHandler during network spawn.
         }
 
         /// <summary>
@@ -448,7 +358,7 @@ namespace Blocks.Gameplay.Core
                 }
                 else
                 {
-                    coreMovement.SetPosition(Vector3.zero);
+                    Debug.LogWarning("[GameManager] No spawnPoints configured — player will respawn in place. Assign spawnPoints in the Inspector.", this);
                 }
 
                 coreMovement.ResetMovementForces();
@@ -493,18 +403,6 @@ namespace Blocks.Gameplay.Core
         }
 
         /// <summary>
-        /// Calculates the spawn index based on ClientID modulo spawn point count.
-        /// Used for initial spawning to distribute players evenly across spawn points.
-        /// </summary>
-        /// <param name="clientId">The client ID to calculate the spawn index for.</param>
-        /// <returns>The spawn point index, or -1 if no spawn points are configured.</returns>
-        private int GetSpawnIndex(ulong clientId)
-        {
-            if (spawnPoints == null || spawnPoints.Count == 0) return -1;
-            return (int)(clientId % (ulong)spawnPoints.Count);
-        }
-
-        /// <summary>
         /// Returns a random spawn index for respawning.
         /// Used for respawning to add variety and prevent spawn camping.
         /// </summary>
@@ -513,30 +411,6 @@ namespace Blocks.Gameplay.Core
         {
             if (spawnPoints == null || spawnPoints.Count == 0) return -1;
             return Random.Range(0, spawnPoints.Count);
-        }
-
-        /// <summary>
-        /// Returns the world position for the given ClientID's assigned spawn point.
-        /// Defaults to Vector3.zero if no spawn points are set.
-        /// </summary>
-        /// <param name="clientId">The client ID to get the spawn position for.</param>
-        /// <returns>The world position of the assigned spawn point.</returns>
-        private Vector3 GetSpawnPosition(ulong clientId)
-        {
-            int index = GetSpawnIndex(clientId);
-            if (index == -1)
-            {
-                Debug.LogWarning("[GameManager] No spawn points configured. Using Vector3.zero as spawn position.", this);
-                return Vector3.zero;
-            }
-
-            if (spawnPoints[index] == null)
-            {
-                Debug.LogError($"[GameManager] Spawn point at index {index} is null. Using Vector3.zero as spawn position.", this);
-                return Vector3.zero;
-            }
-
-            return spawnPoints[index].position;
         }
 
         /// <summary>
@@ -582,34 +456,6 @@ namespace Blocks.Gameplay.Core
             }
         }
 
-        /// <summary>
-        /// Coroutine that smoothly fades out and hides the session UI.
-        /// Interpolates opacity from current value to 0 over the fade duration, then hides the UI completely.
-        /// </summary>
-        /// <returns>Enumerator for coroutine execution.</returns>
-        private IEnumerator FadeOutAndDisable()
-        {
-            if (sessionUI == null) yield break;
-
-            VisualElement root = sessionUI.rootVisualElement;
-            float startOpacity = root.resolvedStyle.opacity;
-
-            // Handle edge case where opacity is already near zero
-            if (startOpacity < 0.01f) startOpacity = 1f;
-
-            float elapsedTime = 0f;
-            while (elapsedTime < fadeDuration)
-            {
-                elapsedTime += Time.deltaTime;
-                float t = Mathf.Clamp01(elapsedTime / fadeDuration);
-                root.style.opacity = Mathf.Lerp(startOpacity, 0f, t);
-                yield return null;
-            }
-
-            // Ensure fully faded and hidden
-            root.style.opacity = 0f;
-            root.style.display = DisplayStyle.None;
-        }
 
         #endregion
     }

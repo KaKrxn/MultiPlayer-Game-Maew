@@ -117,7 +117,8 @@ namespace Blocks.Gameplay.Core
                 other.TryGetComponent<NetworkObject>(out var netObj) && netObj.IsOwner &&
                 IsPlayer(other.gameObject))
             {
-                Interact(other.gameObject);
+                PlayerAction.instance.LocalDie();
+                // Interact(other.gameObject);
             }
         }
 

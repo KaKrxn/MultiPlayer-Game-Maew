@@ -109,6 +109,26 @@ namespace Blocks.Gameplay.Core
         /// Selects a material set based on ClientID and applies it to the renderer.
         /// Uses modulo operation to cycle through available material sets for each unique client.
         /// </summary>
+        // private void ApplyMaterialSet()
+        // {
+        //     if (!overrideMaterialsAndColors || targetRenderer == null || materialSets == null || materialSets.Count == 0)
+        //     {
+        //         return;
+        //     }
+
+        //     // Use modulo to distribute material sets evenly across clients
+        //     ulong clientId = m_PlayerManager.OwnerClientId;
+        //     int index = (int)(clientId % (ulong)materialSets.Count);
+
+        //     PlayerMaterialSet selectedSet = materialSets[index];
+
+        //     Material[] currentMaterials = targetRenderer.materials;
+        //     if (currentMaterials.Length > 0 && selectedSet.material != null)
+        //     {
+        //         currentMaterials[0] = selectedSet.material;
+        //         targetRenderer.materials = currentMaterials;
+        //     }
+        // }
         private void ApplyMaterialSet()
         {
             if (!overrideMaterialsAndColors || targetRenderer == null || materialSets == null || materialSets.Count == 0)
@@ -116,17 +136,26 @@ namespace Blocks.Gameplay.Core
                 return;
             }
 
+            // ตรวจสอบเบื้องต้นว่าไม่ใช่ Prefab ที่อยู่ใน Project Window
+            if (gameObject.scene.name == null) return; 
+
             // Use modulo to distribute material sets evenly across clients
             ulong clientId = m_PlayerManager.OwnerClientId;
             int index = (int)(clientId % (ulong)materialSets.Count);
 
             PlayerMaterialSet selectedSet = materialSets[index];
 
-            Material[] currentMaterials = targetRenderer.materials;
-            if (currentMaterials.Length > 0 && selectedSet.material != null)
+            if (selectedSet.material != null)
             {
-                currentMaterials[0] = selectedSet.material;
-                targetRenderer.materials = currentMaterials;
+                // ใช้ sharedMaterials เพื่อเลี่ยง Error บน Prefab 
+                // และประสิทธิภาพที่ดีกว่าในจังหวะ Spawn
+                Material[] currentSharedMaterials = targetRenderer.sharedMaterials;
+                
+                if (currentSharedMaterials.Length > 0)
+                {
+                    currentSharedMaterials[0] = selectedSet.material;
+                    targetRenderer.sharedMaterials = currentSharedMaterials;
+                }
             }
         }
 

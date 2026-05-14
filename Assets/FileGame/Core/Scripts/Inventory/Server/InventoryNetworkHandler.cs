@@ -3,6 +3,7 @@ using Unity.Netcode;
 using Unity.Collections;
 using System.Linq;
 using FileGame.Core;
+using System.Diagnostics;
 
 /// <summary>
 /// Server-authoritative inventory handler living on each player prefab.
@@ -76,7 +77,7 @@ public class InventoryNetworkHandler : NetworkBehaviour
         ItemData itemData = ResolveItemData(itemName.ToString());
         if (itemData == null)
         {
-            Debug.LogWarning($"[Inventory] Server rejected add: '{itemName}' not found in registry.");
+            UnityEngine.Debug.LogWarning($"[Inventory] Server rejected add: '{itemName}' not found in registry.");
             return;
         }
 
@@ -114,7 +115,7 @@ public class InventoryNetworkHandler : NetworkBehaviour
             int freeSlot = FindFreeSlot();
             if (freeSlot == -1)
             {
-                Debug.LogWarning($"[Inventory] Server: No room for '{itemName}', {remaining} remaining.");
+                UnityEngine.Debug.LogWarning($"[Inventory] Server: No room for '{itemName}', {remaining} remaining.");
                 break;
             }
 
@@ -155,7 +156,7 @@ public class InventoryNetworkHandler : NetworkBehaviour
         ItemData itemData = ResolveItemData(slotData.itemName.ToString());
         if (itemData == null || itemData.dropPrefab == null)
         {
-            Debug.LogWarning($"[Inventory] Server: Cannot drop '{slotData.itemName}', no drop prefab.");
+            UnityEngine.Debug.LogWarning($"[Inventory] Server: Cannot drop '{slotData.itemName}', no drop prefab.");
             return;
         }
 
@@ -194,7 +195,7 @@ public class InventoryNetworkHandler : NetworkBehaviour
         ItemData itemData = ResolveItemData(slotData.itemName.ToString());
         if (itemData == null || !itemData.isConsumable)
         {
-            Debug.LogWarning($"[Inventory] Server rejected consume: '{slotData.itemName}' is not consumable.");
+            UnityEngine.Debug.LogWarning($"[Inventory] Server rejected consume: '{slotData.itemName}' is not consumable.");
             return;
         }
 
@@ -207,8 +208,9 @@ public class InventoryNetworkHandler : NetworkBehaviour
         var statsHandler = GetComponent<Blocks.Gameplay.Core.CoreStatsHandler>();
         if (statsHandler != null)
         {
-            if (itemData.itemName == "Antidote")
-            {
+            UnityEngine.Debug.Log($"[Inventory] Consuming '{slotData.itemName}' x{removeAmount} for player {OwnerClientId}.");
+            
+            if (itemData.itemName == "Antidote") {
                 // Antidote: Starts a restorative routine that cures toxicity
                 var survivalSys = statsHandler.GetComponent<PlayerSurvivalSystem>();
                 if (survivalSys != null)
@@ -220,11 +222,16 @@ public class InventoryNetworkHandler : NetworkBehaviour
                     // Fallback
                     float reductionAmount = -slotData.durability * removeAmount;
                     statsHandler.ModifyStat(SurvivalStatKeys.Toxic, reductionAmount, OwnerClientId, Blocks.Gameplay.Core.ModificationSource.Natural);
-                    Debug.Log($"[Survival] Player used Antidote (Fallback)! Cured {Mathf.Abs(reductionAmount)} Toxic.");
+                    UnityEngine.Debug.Log($"[Survival] Player used Antidote (Fallback)! Cured {Mathf.Abs(reductionAmount)} Toxic.");
                 }
-            }
-            else
-            {
+            
+            } else if (itemData.itemName == "Bandage") {
+                // Bandage: reduces Pain based on durability
+                float reductionAmount = -(slotData.durability) * removeAmount;
+                statsHandler.ModifyStat(SurvivalStatKeys.Pain, reductionAmount, OwnerClientId, Blocks.Gameplay.Core.ModificationSource.Natural);
+                UnityEngine.Debug.Log($"[Survival] Player used Bandage! Reduced Pain by {Mathf.Abs(reductionAmount)}.");
+
+            } else {
                 // Food: reduces hunger based on durability
                 float reductionAmount = -(slotData.durability / GameConstants.HungerReductionDivisor) * removeAmount;
                 statsHandler.ModifyStat(SurvivalStatKeys.Hunger, reductionAmount, OwnerClientId, Blocks.Gameplay.Core.ModificationSource.Natural);
@@ -238,13 +245,13 @@ public class InventoryNetworkHandler : NetworkBehaviour
                     if (survivalSys != null)
                     {
                         survivalSys.AddDelayedToxicity(toxicAmount);
-                        Debug.Log($"[Survival] Player ate food that will cause a stomach ache! Pending Toxic: {toxicAmount}");
+                        UnityEngine.Debug.Log($"[Survival] Player ate food that will cause a stomach ache! Pending Toxic: {toxicAmount}");
                     }
                     else
                     {
                         // Fallback
                         statsHandler.ModifyStat(SurvivalStatKeys.Toxic, toxicAmount, OwnerClientId, Blocks.Gameplay.Core.ModificationSource.Environmental);
-                        Debug.Log($"[Survival] Player ate food that caused instant toxicity! Added {toxicAmount} Toxic.");
+                        UnityEngine.Debug.Log($"[Survival] Player ate food that caused instant toxicity! Added {toxicAmount} Toxic.");
                     }
                 }
             }
@@ -260,6 +267,38 @@ public class InventoryNetworkHandler : NetworkBehaviour
         {
             _serverInventory[slotIndex] = NetworkInventorySlotData.Empty;
         }
+    }
+
+    [ServerRpc]
+    public void RequestRemoveItemFromSlotServerRpc(int slotIndex, int amount, FixedString32Bytes expectedItemName)
+    {
+        if (!IsValidSlotIndex(slotIndex) || amount <= 0) return;
+
+        var slotData = _serverInventory[slotIndex];
+        if (slotData.isEmpty) return;
+
+        string expectedName = expectedItemName.ToString();
+        if (!string.IsNullOrEmpty(expectedName) && slotData.itemName.ToString() != expectedName)
+        {
+            UnityEngine.Debug.LogWarning($"[Inventory] Server rejected slot remove: slot {slotIndex} has '{slotData.itemName}', expected '{expectedName}'.");
+            return;
+        }
+
+        int removeAmount = Mathf.Clamp(amount, 1, Mathf.Max(1, slotData.stackCount));
+
+        ServerUtility.ApplyWeightToPlayer(OwnerClientId, -(slotData.weight * removeAmount));
+
+        if (slotData.stackCount > removeAmount)
+        {
+            slotData.stackCount -= removeAmount;
+            _serverInventory[slotIndex] = slotData;
+        }
+        else
+        {
+            _serverInventory[slotIndex] = NetworkInventorySlotData.Empty;
+        }
+
+        UnityEngine.Debug.Log($"[Inventory] Removed '{slotData.itemName}' x{removeAmount} from slot {slotIndex} for player {OwnerClientId}.");
     }
 
     [ServerRpc]

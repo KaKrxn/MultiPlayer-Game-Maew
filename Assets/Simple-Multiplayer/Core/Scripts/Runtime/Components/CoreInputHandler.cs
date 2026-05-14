@@ -109,6 +109,24 @@ namespace Blocks.Gameplay.Core
 
         #endregion
 
+        #region Public Control
+
+        /// <summary>
+        /// Enable or disable all player input. Used by PauseMenuManager to freeze input when menu is open.
+        /// Only affects the local owner — other players are unaffected.
+        /// </summary>
+        public void SetInputEnabled(bool enabled)
+        {
+            if (!IsOwner || m_InputActions == null) return;
+
+            if (enabled)
+                m_InputActions.Player.Enable();
+            else
+                m_InputActions.Player.Disable();
+        }
+
+        #endregion
+
         #region Input Handlers
 
         private void HandleMove(InputAction.CallbackContext context) => onMoveInput?.Raise(context.ReadValue<Vector2>());

@@ -44,6 +44,14 @@ public class EndlessMapManager : NetworkBehaviour
     [Tooltip("Length of the transition tile (usually shorter than standard)")]
     public float transitionTileLength = 30f;
 
+    [Header("End Sequence")]
+    [Tooltip("Stop normal map generation after this many route tiles have spawned")]
+    public int maxTilesBeforeEnd = 100;
+    [Tooltip("Final tile placed after the route tile limit is reached")]
+    public GameObject endTilePrefab;
+    [Tooltip("Length of the final tile")]
+    public float endTileLength = 50f;
+
     [Header("General Settings")]
     public int numberOfTilesOnScreen = 10;
     public float recycleDistance = 60f;
@@ -60,6 +68,9 @@ public class EndlessMapManager : NetworkBehaviour
     private int currentBiomeIndex = -1;
     private int tilesLeftInCurrentBiome = 0;
     private bool isTransitionPhase = false;
+    private int spawnedRouteTileCount = 0;
+    private bool hasSpawnedEndTile = false;
+    private bool mapGenerationComplete = false;
 
     public override void OnNetworkSpawn()
     {
@@ -67,6 +78,12 @@ public class EndlessMapManager : NetworkBehaviour
         {
             StartCoroutine(WaitAndSpawnInitialMap());
         }
+    }
+
+    private void OnValidate()
+    {
+        maxTilesBeforeEnd = Mathf.Max(0, maxTilesBeforeEnd);
+        endTileLength = Mathf.Max(0f, endTileLength);
     }
 
     private IEnumerator WaitAndSpawnInitialMap()
@@ -105,8 +122,23 @@ public class EndlessMapManager : NetworkBehaviour
     /// </summary>
     private void SpawnNextLogicTile()
     {
+        if (mapGenerationComplete) return;
+
         GameObject prefabToSpawn = null;
         float lengthOfThisTile = standardTileLength;
+
+        if (!hasSpawnedEndTile && spawnedRouteTileCount >= maxTilesBeforeEnd)
+        {
+            if (endTilePrefab == null)
+            {
+                mapGenerationComplete = true;
+                Debug.LogWarning("[MapManager] End tile limit reached, but endTilePrefab is not assigned. Map generation stopped.");
+                return;
+            }
+
+            InstantiateAndSetupTile(endTilePrefab, endTileLength, true);
+            return;
+        }
 
         // Phase 1: Start sequence tiles
         if (isSpawningStartTiles)
@@ -187,13 +219,13 @@ public class EndlessMapManager : NetworkBehaviour
     /// <summary>
     /// Instantiates a tile, configures it (biome spawner, waypoints, curve), and tracks it.
     /// </summary>
-    private void InstantiateAndSetupTile(GameObject prefab, float tileLength)
+    private void InstantiateAndSetupTile(GameObject prefab, float tileLength, bool isEndTile = false)
     {
         Vector3 spawnPosition = new Vector3(0, 0, spawnZ);
         GameObject tile = Instantiate(prefab, spawnPosition, Quaternion.identity);
 
         // Inject current biome name into the tile's loot spawner
-        if (currentBiomeIndex >= 0 && currentBiomeIndex < biomes.Length)
+        if (!isEndTile && currentBiomeIndex >= 0 && currentBiomeIndex < biomes.Length)
         {
             var spawner = tile.GetComponent<BiomeBoxSpawner>();
             if (spawner == null) spawner = tile.GetComponentInChildren<BiomeBoxSpawner>();
@@ -226,6 +258,18 @@ public class EndlessMapManager : NetworkBehaviour
 
         activeTiles.Add(tile);
         spawnZ += tileLength;
+
+        if (isEndTile)
+        {
+            hasSpawnedEndTile = true;
+            mapGenerationComplete = true;
+            Debug.Log($"[MapManager] End tile spawned after {spawnedRouteTileCount} route tile(s). Map generation complete.");
+        }
+        else
+        {
+            spawnedRouteTileCount++;
+            Debug.Log($"[MapManager] Spawned route tile {spawnedRouteTileCount}/{maxTilesBeforeEnd}");
+        }
     }
 
     /// <summary>

@@ -1,9 +1,10 @@
 using System.Collections;
-using UnityEngine;
-using Unity.Netcode;
-using TMPro;
-using UnityEngine.EventSystems;
 using Blocks.Gameplay.Core;
+using TMPro;
+using Unity.Netcode;
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 public class ChatManager : NetworkBehaviour
 {
@@ -11,9 +12,11 @@ public class ChatManager : NetworkBehaviour
 
     [Header("Chat UI")]
     [SerializeField] private GameObject chatRoot;
+    [SerializeField] private ScrollRect scrollRect;
     [SerializeField] private Transform chatContent;
     [SerializeField] private TMP_InputField chatInput;
-    [SerializeField] private ChatMessage chatMessagePrefab;
+    [SerializeField] private Button sendButton;
+    [SerializeField] private ChatMessageUI chatMessagePrefab;
 
     [Header("Player Info")]
     [SerializeField] private string defaultPlayerName = "Player";
@@ -21,64 +24,79 @@ public class ChatManager : NetworkBehaviour
     [Header("Optional")]
     [SerializeField] private Behaviour[] disableWhileChatOpen;
     [SerializeField] private bool unlockCursorWhileChatOpen = true;
+    [SerializeField] private bool alwaysShowCursor = false;
+    [SerializeField] private bool closeWhenSubmittingEmptyMessage = true;
 
-    private bool isChatOpen = false;
-    private CursorLockMode cachedLockMode;
-    private bool cachedCursorVisible;
+    private bool m_IsChatOpen;
+    private CursorLockMode m_CachedLockMode;
+    private bool m_CachedCursorVisible;
 
     private void Awake()
     {
         Singleton = this;
+
+        if (sendButton != null)
+            sendButton.onClick.AddListener(SendCurrentInput);
     }
 
     private void Start()
     {
         CloseChat(true);
+
+        if (alwaysShowCursor)
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
+    }
+
+    public override void OnNetworkSpawn()
+    {
+        if (IsClient && PlayerNameRegistry.Instance != null)
+            PlayerNameRegistry.Instance.SubmitLocalNameServerRpc(GetCurrentLocalPlayerName());
+    }
+
+    private void OnDestroy()
+    {
+        if (sendButton != null)
+            sendButton.onClick.RemoveListener(SendCurrentInput);
+
+        if (Singleton == this)
+            Singleton = null;
     }
 
     private void Update()
     {
-        bool enterPressed = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
+        if (Input.GetKeyDown(KeyCode.Escape) && m_IsChatOpen)
+        {
+            CloseChat(false);
+            return;
+        }
 
+        bool enterPressed = Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
         if (!enterPressed)
             return;
 
-        if (!isChatOpen)
+        if (!m_IsChatOpen)
         {
             OpenChat();
             return;
         }
 
-        SubmitOrCloseChat();
+        SendCurrentInput();
     }
 
-    private string GetCurrentLocalPlayerName()
+    public void OpenChat()
     {
-        if (!string.IsNullOrWhiteSpace(PlayerRuntimeData.LocalPlayerName))
-            return PlayerRuntimeData.LocalPlayerName;
-
-        return PlayerPrefs.GetString("PlayerName", defaultPlayerName);
-    }
-
-    private bool CanSendMessage()
-    {
-        if (NetworkManager.Singleton == null) return false;
-        if (!NetworkManager.Singleton.IsListening) return false;
-        if (!IsSpawned) return false;
-        return true;
-    }
-
-    private void OpenChat()
-    {
-        isChatOpen = true;
+        m_IsChatOpen = true;
 
         if (chatRoot != null)
             chatRoot.SetActive(true);
 
         if (unlockCursorWhileChatOpen)
         {
-            cachedLockMode = Cursor.lockState;
-            cachedCursorVisible = Cursor.visible;
+            m_CachedLockMode = Cursor.lockState;
+            m_CachedCursorVisible = Cursor.visible;
 
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
@@ -88,12 +106,12 @@ public class ChatManager : NetworkBehaviour
         StartCoroutine(FocusInputNextFrame());
     }
 
-    private void CloseChat(bool clearInput)
+    public void CloseChat(bool clearInput)
     {
-        isChatOpen = false;
+        m_IsChatOpen = false;
 
         if (clearInput && chatInput != null)
-            chatInput.text = "";
+            chatInput.text = string.Empty;
 
         if (chatInput != null)
             chatInput.DeactivateInputField();
@@ -106,11 +124,62 @@ public class ChatManager : NetworkBehaviour
 
         if (unlockCursorWhileChatOpen)
         {
-            Cursor.lockState = cachedLockMode;
-            Cursor.visible = cachedCursorVisible;
+            Cursor.lockState = m_CachedLockMode;
+            Cursor.visible = m_CachedCursorVisible;
+        }
+
+        if (alwaysShowCursor)
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
         }
 
         SetGameplayScriptsEnabled(true);
+    }
+
+    public void SendCurrentInput()
+    {
+        if (chatInput == null)
+            return;
+
+        string message = chatInput.text.Trim();
+
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            if (closeWhenSubmittingEmptyMessage)
+                CloseChat(true);
+            return;
+        }
+
+        if (!CanSendMessage())
+            return;
+
+        SendChatMessageServerRpc(message, GetCurrentLocalPlayerName());
+
+        chatInput.text = string.Empty;
+        if (!m_IsChatOpen)
+            OpenChat();
+
+        StartCoroutine(FocusInputNextFrame());
+    }
+
+    private string GetCurrentLocalPlayerName()
+    {
+        string registryName = PlayerNameRegistry.GetSavedLocalPlayerName();
+        if (!string.IsNullOrWhiteSpace(registryName))
+            return registryName;
+
+        if (!string.IsNullOrWhiteSpace(PlayerRuntimeData.LocalPlayerName))
+            return PlayerRuntimeData.LocalPlayerName;
+
+        return PlayerPrefs.GetString(PlayerNameRegistry.PlayerPrefsKey, defaultPlayerName);
+    }
+
+    private bool CanSendMessage()
+    {
+        return NetworkManager.Singleton != null &&
+               NetworkManager.Singleton.IsListening &&
+               IsSpawned;
     }
 
     private IEnumerator FocusInputNextFrame()
@@ -129,34 +198,10 @@ public class ChatManager : NetworkBehaviour
         chatInput.caretPosition = chatInput.text.Length;
     }
 
-    private void SubmitOrCloseChat()
-    {
-        if (chatInput == null)
-            return;
-
-        string message = chatInput.text.Trim();
-
-        if (string.IsNullOrWhiteSpace(message))
-        {
-            CloseChat(true);
-            return;
-        }
-
-        if (!CanSendMessage())
-            return;
-
-        string senderName = GetCurrentLocalPlayerName();
-        string finalMessage = senderName + " > " + message;
-
-        SendChatMessageServerRpc(finalMessage);
-
-        chatInput.text = "";
-        CloseChat(false);
-    }
-
     private void SetGameplayScriptsEnabled(bool enabledState)
     {
-        if (disableWhileChatOpen == null) return;
+        if (disableWhileChatOpen == null)
+            return;
 
         for (int i = 0; i < disableWhileChatOpen.Length; i++)
         {
@@ -165,34 +210,60 @@ public class ChatManager : NetworkBehaviour
         }
     }
 
-    private void AddMessage(string msg)
+    private void AddMessage(ulong senderClientId, string senderName, string message)
     {
         if (chatMessagePrefab == null || chatContent == null)
             return;
 
-        ChatMessage cm = Instantiate(chatMessagePrefab, chatContent);
+        ChatMessageUI messageUi = Instantiate(chatMessagePrefab, chatContent);
 
-        RectTransform rect = cm.GetComponent<RectTransform>();
+        RectTransform rect = messageUi.GetComponent<RectTransform>();
         if (rect != null)
         {
             rect.localScale = Vector3.one;
             rect.localRotation = Quaternion.identity;
         }
 
-        cm.transform.SetAsLastSibling();
-        cm.SetText(msg);
+        bool isOwnMessage = NetworkManager.Singleton != null &&
+                            senderClientId == NetworkManager.Singleton.LocalClientId;
+
+        messageUi.transform.SetAsLastSibling();
+        messageUi.Bind($"[{senderName}]: {message}", isOwnMessage);
+        StartCoroutine(ScrollToBottomNextFrame());
+    }
+
+    private IEnumerator ScrollToBottomNextFrame()
+    {
+        yield return null;
+        Canvas.ForceUpdateCanvases();
+
+        if (scrollRect != null)
+            scrollRect.verticalNormalizedPosition = 0f;
     }
 
     [ServerRpc(RequireOwnership = false)]
-    private void SendChatMessageServerRpc(string message)
+    private void SendChatMessageServerRpc(string message, string submittedName, ServerRpcParams rpcParams = default)
     {
-        ReceiveChatMessageClientRpc(message);
+        string trimmedMessage = message.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedMessage))
+            return;
+
+        ulong senderClientId = rpcParams.Receive.SenderClientId;
+        string senderName = PlayerNameRegistry.SanitizeName(submittedName);
+
+        if (PlayerNameRegistry.Instance != null)
+        {
+            PlayerNameRegistry.Instance.EnsureNameForClient(senderClientId, senderName);
+            senderName = PlayerNameRegistry.Instance.GetName(senderClientId);
+        }
+
+        ReceiveChatMessageClientRpc(senderClientId, senderName, trimmedMessage);
     }
 
     [ClientRpc]
-    private void ReceiveChatMessageClientRpc(string message)
+    private void ReceiveChatMessageClientRpc(ulong senderClientId, string senderName, string message)
     {
         if (Singleton != null)
-            Singleton.AddMessage(message);
+            Singleton.AddMessage(senderClientId, senderName, message);
     }
 }

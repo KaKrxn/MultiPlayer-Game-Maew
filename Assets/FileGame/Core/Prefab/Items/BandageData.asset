@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 69560e2e796fd8c4d85501eec6216774, type: 3}
+  m_Name: BandageData
+  m_EditorClassIdentifier: Assembly-CSharp::ItemData
+  itemName: Bandage
+  itemPicture: {fileID: -724805922, guid: 215687feeab0b7445b4a1cd86c82c2e1, type: 3}
+  description: This is healing item.
+  itemType: 3
+  maxStack: 1
+  isConsumable: 1
+  usesAmountValue: 0
+  toxicChance: 0
+  promptDisplayType: 0
+  dropPrefab: {fileID: 1056250608077221738, guid: 9dbbccebeac1ba34eb4757eb63520985, type: 3}

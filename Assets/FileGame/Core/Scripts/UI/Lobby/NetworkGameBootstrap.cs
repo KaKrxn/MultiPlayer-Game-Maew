@@ -67,7 +67,7 @@ public class NetworkGameBootstrap : MonoBehaviour
         return success;
     }
 
-    public bool StartClientLocal()
+    public bool StartClientLocal(string ipAddress = null)
     {
         if (networkManager == null || unityTransport == null)
             return false;
@@ -75,7 +75,8 @@ public class NetworkGameBootstrap : MonoBehaviour
         if (networkManager.IsListening)
             return true;
 
-        unityTransport.SetConnectionData(serverAddress, serverPort);
+        string targetAddress = !string.IsNullOrEmpty(ipAddress) ? ipAddress : serverAddress;
+        unityTransport.SetConnectionData(targetAddress, serverPort);
 
         bool success = networkManager.StartClient();
         Debug.Log(success
@@ -89,5 +90,25 @@ public class NetworkGameBootstrap : MonoBehaviour
     {
         if (networkManager != null && networkManager.IsListening)
             networkManager.Shutdown();
+    }
+
+    public static string GetLocalIPAddress()
+    {
+        try
+        {
+            var host = System.Net.Dns.GetHostEntry(System.Net.Dns.GetHostName());
+            foreach (var ip in host.AddressList)
+            {
+                if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                {
+                    return ip.ToString();
+                }
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"Error getting local IP: {ex.Message}");
+        }
+        return "127.0.0.1";
     }
 }
