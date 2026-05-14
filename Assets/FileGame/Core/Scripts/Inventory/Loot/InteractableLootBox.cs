@@ -58,7 +58,7 @@ namespace Blocks.Gameplay.Core
                     // 2. Calculate Durability, Weight, and Scale
                     int durability = WeightedRandomUtility.CalculateDurability(rarity);
                     float weightKg = WeightedRandomUtility.CalculateWeight(rarity);
-                    float scaleMult = WeightedRandomUtility.GetScaleMultiplier(rarity);
+                    float scaleMult = WeightedRandomUtility.CalculateDynamicScale(weightKg);
                     
                     // 3. Spawn Loot
                     Vector3 targetPos = spawnPoint != null ? spawnPoint.position : transform.position + Vector3.up;

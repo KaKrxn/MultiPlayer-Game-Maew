@@ -352,6 +352,48 @@ public class InventoryManager : MonoBehaviour, IItemContainer
             OnSelectedQuickSlotChanged?.Invoke(selectedQuickSlotIndex, GetQuickSlotItemData(selectedQuickSlotIndex));
     }
 
+    /// <summary>
+    /// Instantly moves an item between a quick slot and a main slot, if space is available.
+    /// </summary>
+    public void QuickMoveItem(InventoryItem item)
+    {
+        var currentIndex = Array.FindIndex(_inventoryData, x => x.inventoryItem == item);
+        if (currentIndex == -1) return;
+
+        bool isQuickSlot = currentIndex < quickSlots.Count;
+        int targetSlotIndex = -1;
+
+        if (isQuickSlot)
+        {
+            // Move from quick slot to main slot
+            for (int i = quickSlots.Count; i < allSlots.Count; i++)
+            {
+                if (allSlots[i].IsEmpty)
+                {
+                    targetSlotIndex = i;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            // Move from main slot to quick slot
+            for (int i = 0; i < quickSlots.Count; i++)
+            {
+                if (allSlots[i].IsEmpty)
+                {
+                    targetSlotIndex = i;
+                    break;
+                }
+            }
+        }
+
+        if (targetSlotIndex != -1)
+        {
+            ItemMoved(item, allSlots[targetSlotIndex]);
+        }
+    }
+
     public void DropItem(InventoryItem inventoryItem)
     {
         for (int i = 0; i < _inventoryData.Length; i++)

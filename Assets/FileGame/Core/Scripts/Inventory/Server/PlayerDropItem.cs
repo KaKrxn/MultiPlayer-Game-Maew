@@ -34,6 +34,10 @@ public class PlayerDropItem : NetworkBehaviour
         if (itemToDrop != null && itemToDrop.dropPrefab != null)
         {
             GameObject spawnedObject = Instantiate(itemToDrop.dropPrefab, position, rotation);
+            
+            // Apply Dynamic Scaling based on weight
+            spawnedObject.transform.localScale *= WeightedRandomUtility.CalculateDynamicScale(weightKg);
+
             NetworkObject netObj = spawnedObject.GetComponent<NetworkObject>();
             if (netObj != null)
             {

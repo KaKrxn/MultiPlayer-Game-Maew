@@ -387,15 +387,30 @@ public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
             canvasGroup.blocksRaycasts = true;
         }
 
-        // ถ้า OnDrop ของ slot ได้รับการเรียกแล้ว parent จะถูกเปลี่ยน
-        // ที่นี่ snap กลับเฉพาะกรณีที่ยังลอยอยู่บน canvas (ไม่ได้ถูกรับโดย slot ใด)
-        if (canvas != null && transform.parent == canvas.transform)
+        if (_wasMovedByManager)
         {
-            transform.SetParent(originalParent);
-            SetAvailable();
+            // InventoryManager already handled the move via SetItem — just reset the flag
+            _wasMovedByManager = false;
         }
+        else
+        {
+            // Check if dropped outside UI (no raycast target hit)
+            bool droppedOutside = eventData.pointerCurrentRaycast.gameObject == null;
+            
+            if (droppedOutside && InstanceHandler.TryGetInstance(out InventoryManager invManager))
+            {
+                invManager.DropItem(this);
+                return; // Dropped into world, don't snap back
+            }
 
-        _wasMovedByManager = false;
+            // ถ้า OnDrop ของ slot ได้รับการเรียกแล้ว parent จะถูกเปลี่ยน
+            // ที่นี่ snap กลับเฉพาะกรณีที่ยังลอยอยู่บน canvas (ไม่ได้ถูกรับโดย slot ใด)
+            if (canvas != null && transform.parent == canvas.transform)
+            {
+                transform.SetParent(originalParent);
+                SetAvailable();
+            }
+        }
     }
 
     public void OnPointerClick(PointerEventData eventData)
@@ -405,11 +420,11 @@ public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
 
         if (!InstanceHandler.TryGetInstance(out InventoryManager inventoryManager))
         {
-            Debug.LogError("Failed to get inventory manager to drop item!");
+            Debug.LogError("Failed to get inventory manager for quick move!");
             return;
         }
 
-        inventoryManager.DropItem(this);
+        inventoryManager.QuickMoveItem(this);
     }
 
     public void SetAvailable()
