@@ -164,6 +164,10 @@ public class InventoryNetworkHandler : NetworkBehaviour
         Vector3 spawnPos = transform.position + transform.forward + Vector3.up;
 
         GameObject spawnedObject = Instantiate(itemData.dropPrefab, spawnPos, Quaternion.identity);
+        
+        // Apply Dynamic Scaling based on weight
+        spawnedObject.transform.localScale *= WeightedRandomUtility.CalculateDynamicScale(slotData.weight);
+
         NetworkObject netObj = spawnedObject.GetComponent<NetworkObject>();
         if (netObj != null)
         {

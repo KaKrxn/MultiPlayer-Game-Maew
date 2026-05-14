@@ -311,6 +311,48 @@ public class InventoryManager : MonoBehaviour
     }
 
     /// <summary>
+    /// Instantly moves an item between a quick slot and a main slot, if space is available.
+    /// </summary>
+    public void QuickMoveItem(InventoryItem item)
+    {
+        var currentIndex = Array.FindIndex(_inventoryData, x => x.inventoryItem == item);
+        if (currentIndex == -1) return;
+
+        bool isQuickSlot = currentIndex < quickSlots.Count;
+        int targetSlotIndex = -1;
+
+        if (isQuickSlot)
+        {
+            // Move from quick slot to main slot
+            for (int i = quickSlots.Count; i < allSlots.Count; i++)
+            {
+                if (allSlots[i].IsEmpty)
+                {
+                    targetSlotIndex = i;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            // Move from main slot to quick slot
+            for (int i = 0; i < quickSlots.Count; i++)
+            {
+                if (allSlots[i].IsEmpty)
+                {
+                    targetSlotIndex = i;
+                    break;
+                }
+            }
+        }
+
+        if (targetSlotIndex != -1)
+        {
+            ItemMoved(item, allSlots[targetSlotIndex]);
+        }
+    }
+
+    /// <summary>
     /// Called when an item is drag-dropped to a new slot in the UI.
     /// Routes through server for validation.
     /// </summary>

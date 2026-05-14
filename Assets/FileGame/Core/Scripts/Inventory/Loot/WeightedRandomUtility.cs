@@ -83,6 +83,21 @@ public static class WeightedRandomUtility
         };
     }
 
+    public static ItemSizeRarity GetRarityFromWeight(float weightKg)
+    {
+        if (weightKg < 0.5f) return ItemSizeRarity.Small;
+        if (weightKg < 1.5f) return ItemSizeRarity.Medium;
+        if (weightKg < 3.0f) return ItemSizeRarity.Big;
+        return ItemSizeRarity.SuperHuge;
+    }
+
+    public static float CalculateDynamicScale(float weightKg)
+    {
+        ItemSizeRarity inferredRarity = GetRarityFromWeight(weightKg);
+        float baseScale = GetScaleMultiplier(inferredRarity);
+        return baseScale * (1.0f + (weightKg * 0.5f));
+    }
+
     public static float RoundWeight(float weightKg)
     {
         return Mathf.Round(Mathf.Max(0f, weightKg) * 10f) / 10f;

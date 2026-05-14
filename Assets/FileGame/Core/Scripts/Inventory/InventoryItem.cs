@@ -368,6 +368,15 @@ public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
         }
         else
         {
+            // Check if dropped outside UI (no raycast target hit)
+            bool droppedOutside = eventData.pointerCurrentRaycast.gameObject == null;
+            
+            if (droppedOutside && InstanceHandler.TryGetInstance(out InventoryManager invManager))
+            {
+                invManager.DropItem(this);
+                return; // Dropped into world, don't snap back
+            }
+
             // Drop was cancelled (no valid slot target) — snap back to original parent
             transform.SetParent(originalParent);
             SetAvailable();
@@ -381,11 +390,11 @@ public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
 
         if (!InstanceHandler.TryGetInstance(out InventoryManager inventoryManager))
         {
-            Debug.LogError("Failed to get inventory manager to drop item!");
+            Debug.LogError("Failed to get inventory manager for quick move!");
             return;
         }
 
-        inventoryManager.DropItem(this);
+        inventoryManager.QuickMoveItem(this);
     }
 
     public void SetAvailable()

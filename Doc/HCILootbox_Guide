@@ -1,0 +1,39 @@
+# Walkthrough: Implementing the Lootbox Visualization Helper
+
+We've successfully created the underlying logic to improve the visibility of your Lootboxes using the approved **Light Pillar** and **Proximity Audio Cue** methods. 
+
+Since these changes require adding GameObjects and Components to your existing Unity prefab, follow the steps below in the Unity Editor to finalize the setup.
+
+## 1. Setup the Light Pillar (Visual Cue)
+
+> [!TIP]
+> The Light Pillar uses the `LootboxVisualHelper.cs` script we just created. It will smoothly fade out as you walk away, and pulse to attract attention when you are nearby.
+
+1. **Open your Lootbox Prefab** in the Prefab Editor.
+2. **Create the Pillar Mesh:** Right-click the root of the Lootbox prefab -> `3D Object` -> `Cylinder`. Name it `LightPillar`.
+3. **Shape it:** Set its scale to something tall and thin (e.g., `X: 0.2`, `Y: 2.0`, `Z: 0.2`). Position it so it shoots straight up from the center of the box. Remove its `CapsuleCollider` (we don't want it to block physics).
+4. **Material Setup:** Create a new Material in your project (e.g., `Mat_LootboxPillar`). Change its Surface Type from Opaque to **Transparent**, and pick a bright color (like Neon Blue or Gold) with a low Alpha value (around `100 / 255`). Assign this material to your `LightPillar`.
+5. **Attach the Script:** Add the `LootboxVisualHelper` component to the `LightPillar` GameObject.
+6. **Configure the Script:** Drag the `MeshRenderer` from the `LightPillar` into the script's `Light Pillar Renderer` field. Adjust the Fade Distances and Pulse speeds to your liking.
+
+## 2. Setup the Proximity Audio (Auditory Cue)
+
+> [!IMPORTANT]
+> The Audio cue relies entirely on Unity's built-in 3D Spatial Audio system, requiring zero new code.
+
+1. Still inside your Lootbox Prefab, right-click the root and select `Audio` -> `Audio Source`. Name it `ProximityHum`.
+2. **Assign the Clip:** Assign a subtle, magical humming `AudioClip` to the component.
+3. **Core Settings:** 
+   - Check **Play On Awake**.
+   - Check **Loop**.
+   - Set **Volume** to a low value (e.g., `0.3`).
+4. **3D Sound Settings:**
+   - Change **Spatial Blend** to `1.0` (fully 3D).
+   - Expand the **3D Sound Settings** foldout.
+   - Set **Min Distance** to `1` (full volume inside 1 meter).
+   - Set **Max Distance** to `15` or `20` (sound fades to zero beyond this distance).
+   - Set **Volume Rolloff** to `Linear Rolloff` for a smooth, predictable fade.
+
+## Summary of Changes
+- [NEW] `LootboxVisualHelper.cs` - Handles the logic for the light pillar's alpha fading based on distance to `Camera.main` and adds a sine-wave pulse effect.
+- The existing `InteractableLootBox.cs` remains entirely unchanged, preserving your network logic and architecture. When the `InteractableLootBox` calls `gameObject.SetActive(false)` to hide the box after opening, both the Light Pillar and the Proximity Hum will automatically turn off!
