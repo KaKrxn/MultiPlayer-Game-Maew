@@ -8,6 +8,7 @@ TagManager:
   - Train
   - Fuel
   - Graveyard
+  - Music
   layers:
   - Default
   - TransparentFX
