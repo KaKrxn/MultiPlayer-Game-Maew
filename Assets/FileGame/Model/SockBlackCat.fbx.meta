@@ -3,7 +3,12 @@ guid: 93b6c5081cd08484eb92e6e6df715950
 ModelImporter:
   serializedVersion: 24200
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Texture2D
+      assembly: UnityEngine.CoreModule
+      name: SockBlackCatTexture
+    second: {fileID: 2800000, guid: a0516c73de864b24d85c87f99bd14ee6, type: 3}
   materials:
     materialImportMode: 2
     materialName: 0

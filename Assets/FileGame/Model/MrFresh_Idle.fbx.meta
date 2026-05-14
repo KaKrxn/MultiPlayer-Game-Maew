@@ -9,6 +9,11 @@ ModelImporter:
       assembly: UnityEngine.CoreModule
       name: Material
     second: {fileID: 2100000, guid: 49236bcd2d8abb643a84777a11d69479, type: 2}
+  - first:
+      type: UnityEngine:Texture2D
+      assembly: UnityEngine.CoreModule
+      name: CatTextt
+    second: {fileID: 2800000, guid: 6c67b61f89e8ed94eb813d9433cb3da7, type: 3}
   materials:
     materialImportMode: 2
     materialName: 0
