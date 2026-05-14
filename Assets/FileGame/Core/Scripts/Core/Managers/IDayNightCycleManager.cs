@@ -1,4 +1,5 @@
 using System;
+using UnityEngine;
 
 namespace Blocks.Gameplay.Core
 {
@@ -18,5 +19,6 @@ namespace Blocks.Gameplay.Core
         float DayDuration { get; }
         float NightDuration { get; }
         float TimeRemainingInState { get; }
+        Light MainDirectionalLight { get; }
     }
 }
