@@ -393,6 +393,37 @@ public class InventoryNetworkHandler : NetworkBehaviour
         return _serverInventory[index];
     }
 
+    // ── Server-side cross-container API (used by NetworkVault) ──
+
+    /// <summary>
+    /// SERVER ONLY. Mutate a server-inventory slot directly. Called by NetworkVault when transferring items.
+    /// </summary>
+    public bool TrySetServerSlotData(int index, NetworkInventorySlotData data)
+    {
+        if (!IsServer) return false;
+        if (!IsValidSlotIndex(index)) return false;
+        _serverInventory[index] = data;
+        return true;
+    }
+
+    /// <summary>
+    /// SERVER ONLY. Read raw server slot data (mutable copy).
+    /// </summary>
+    public NetworkInventorySlotData ReadServerSlot(int index)
+    {
+        if (!IsValidSlotIndex(index)) return NetworkInventorySlotData.Empty;
+        return _serverInventory[index];
+    }
+
+    /// <summary>
+    /// SERVER ONLY. Find first free slot index.
+    /// </summary>
+    public int FindFreeSlotServer()
+    {
+        if (!IsServer) return -1;
+        return FindFreeSlot();
+    }
+
     /// <summary>
     /// Check if a specific item exists in hotslots (quickslots, indices 0 to quickSlotCount-1).
     /// Game systems can use this to check conditions like "has shield in hotslot".
