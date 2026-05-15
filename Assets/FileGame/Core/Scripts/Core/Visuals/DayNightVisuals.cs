@@ -31,6 +31,11 @@ namespace Blocks.Gameplay.Core
 
             if (dayNightManager != null)
             {
+                if (directionalLight == null)
+                {
+                    directionalLight = dayNightManager.MainDirectionalLight;
+                }
+
                 dayNightManager.OnStateChanged += HandleStateChanged;
                 // Initialize to current state
                 ApplyInitialState(dayNightManager.CurrentState);

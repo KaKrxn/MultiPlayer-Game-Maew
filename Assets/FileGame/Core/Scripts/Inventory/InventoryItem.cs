@@ -9,6 +9,7 @@ public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
     private CanvasGroup canvasGroup;
     private Canvas canvas;
     private Transform originalParent;
+    public Transform OriginalParent => originalParent;
     private Image itemImage;
 
     [SerializeField] private TMP_Text amountText;
@@ -28,23 +29,43 @@ public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
     public ItemInstanceData InstanceData { get; internal set; }
     public ItemData Data => InstanceData.itemData;
 
+    private bool _coreInitialized = false;
+
     private void Awake()
     {
-        rectTransform = GetComponent<RectTransform>();
-        canvasGroup = GetComponent<CanvasGroup>();
-        canvas = GetComponentInParent<Canvas>();
-        itemImage = GetComponent<Image>();
+        EnsureCoreReferences();
+    }
+
+    /// <summary>
+    /// ตั้งค่า reference ของ component ภายใน prefab. ปลอดภัยที่จะเรียกหลายครั้ง.
+    /// ใช้แทน Awake ในกรณีที่ GameObject ถูก Instantiate ภายใต้ parent ที่ inactive
+    /// (ทำให้ Awake ของ Unity ไม่ถูกเรียก จนกว่าจะ active)
+    /// </summary>
+    private void EnsureCoreReferences()
+    {
+        if (_coreInitialized) return;
+
+        if (rectTransform == null) rectTransform = GetComponent<RectTransform>();
+        if (canvasGroup == null) canvasGroup = GetComponent<CanvasGroup>();
+        if (canvas == null) canvas = GetComponentInParent<Canvas>();
+        if (itemImage == null) itemImage = GetComponent<Image>();
 
         // Unpack dynamic root panels in case not formally mapped
-        Transform genPanel = transform.Find("Generic");
-        if (genPanel != null && genericPanel == null) genericPanel = genPanel.gameObject;
-
-        Transform scrPanel = transform.Find("Scrap");
-        if (scrPanel != null)
+        if (genericPanel == null)
         {
-            if (scrapPanel == null) scrapPanel = scrPanel.gameObject;
-            Transform wtext = scrPanel.Find("WText (TMP)");
-            if (wtext != null && scrapAmountText == null) scrapAmountText = wtext.GetComponent<TMP_Text>();
+            Transform genPanel = transform.Find("Generic");
+            if (genPanel != null) genericPanel = genPanel.gameObject;
+        }
+
+        if (scrapPanel == null || scrapAmountText == null)
+        {
+            Transform scrPanel = transform.Find("Scrap");
+            if (scrPanel != null)
+            {
+                if (scrapPanel == null) scrapPanel = scrPanel.gameObject;
+                Transform wtext = scrPanel.Find("WText (TMP)");
+                if (wtext != null && scrapAmountText == null) scrapAmountText = wtext.GetComponent<TMP_Text>();
+            }
         }
 
         if (amountText == null)
@@ -58,6 +79,10 @@ public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
 
         DisableChildRaycasts();
         EnsureStatUI();
+
+        // ทำเครื่องหมายเสร็จก็ต่อเมื่อหา itemImage ได้แล้ว
+        // ถ้ายังเป็น null อาจเป็นเพราะ component ยังไม่พร้อม ให้ลองอีกครั้งภายหลัง
+        if (itemImage != null) _coreInitialized = true;
     }
 
     private void DisableChildRaycasts()
@@ -88,11 +113,12 @@ public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
     public void SetInstanceData(ItemInstanceData itemInstance)
     {
         InstanceData = itemInstance;
+        EnsureCoreReferences();
         EnsureStatUI();
 
         if (itemImage == null)
         {
-            Debug.LogError("itemImage is NULL on " + gameObject.name);
+            Debug.LogError("itemImage is NULL on " + gameObject.name + " (no Image component on root prefab?)");
             return;
         }
 
@@ -377,9 +403,13 @@ public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
                 return; // Dropped into world, don't snap back
             }
 
-            // Drop was cancelled (no valid slot target) — snap back to original parent
-            transform.SetParent(originalParent);
-            SetAvailable();
+            // ถ้า OnDrop ของ slot ได้รับการเรียกแล้ว parent จะถูกเปลี่ยน
+            // ที่นี่ snap กลับเฉพาะกรณีที่ยังลอยอยู่บน canvas (ไม่ได้ถูกรับโดย slot ใด)
+            if (canvas != null && transform.parent == canvas.transform)
+            {
+                transform.SetParent(originalParent);
+                SetAvailable();
+            }
         }
     }
 

@@ -9,6 +9,11 @@ ModelImporter:
       assembly: UnityEngine.CoreModule
       name: Material
     second: {fileID: 2100000, guid: d24d790d458bb0641a62ecbb2ae33966, type: 2}
+  - first:
+      type: UnityEngine:Texture2D
+      assembly: UnityEngine.CoreModule
+      name: WhiteCat
+    second: {fileID: 2800000, guid: 430f7d6382ce6494aa29e619a48e24f5, type: 3}
   materials:
     materialImportMode: 2
     materialName: 0

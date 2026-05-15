@@ -1,0 +1,210 @@
+﻿diff --git a/Assets/FileGame/Core/Prefab/Obstacle/ToxicWave.prefab b/Assets/FileGame/Core/Prefab/Obstacle/ToxicWave.prefab
+index 8e7f5120..2db2a388 100644
+--- a/Assets/FileGame/Core/Prefab/Obstacle/ToxicWave.prefab
++++ b/Assets/FileGame/Core/Prefab/Obstacle/ToxicWave.prefab
+@@ -154,7 +154,7 @@ MonoBehaviour:
+   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
+   m_Name: 
+   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
+-  GlobalObjectIdHash: 2170943157
++  GlobalObjectIdHash: 3985194982
+   InScenePlacedSourceGlobalObjectIdHash: 2170943157
+   DeferredDespawnTick: 0
+   Ownership: 1
+diff --git a/Assets/FileGame/Core/Scripts/Inventory/InventoryItem.cs b/Assets/FileGame/Core/Scripts/Inventory/InventoryItem.cs
+index f86abba6..605d4260 100644
+--- a/Assets/FileGame/Core/Scripts/Inventory/InventoryItem.cs
++++ b/Assets/FileGame/Core/Scripts/Inventory/InventoryItem.cs
+@@ -387,15 +387,30 @@ public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
+             canvasGroup.blocksRaycasts = true;
+         }
+ 
+-        // α╕ûα╣ëα╕▓ OnDrop α╕éα╕¡α╕ç slot α╣äα╕öα╣ëα╕úα╕▒α╕Üα╕üα╕▓α╕úα╣Çα╕úα╕╡α╕óα╕üα╣üα╕Ñα╣ëα╕º parent α╕êα╕░α╕ûα╕╣α╕üα╣Çα╕¢α╕Ñα╕╡α╣êα╕óα╕Ö
+-        // α╕ùα╕╡α╣êα╕Öα╕╡α╣ê snap α╕üα╕Ñα╕▒α╕Üα╣Çα╕ëα╕₧α╕▓α╕░α╕üα╕úα╕ôα╕╡α╕ùα╕╡α╣êα╕óα╕▒α╕çα╕Ñα╕¡α╕óα╕¡α╕óα╕╣α╣êα╕Üα╕Ö canvas (α╣äα╕íα╣êα╣äα╕öα╣ëα╕ûα╕╣α╕üα╕úα╕▒α╕Üα╣éα╕öα╕ó slot α╣âα╕ö)
+-        if (canvas != null && transform.parent == canvas.transform)
++        if (_wasMovedByManager)
+         {
+-            transform.SetParent(originalParent);
+-            SetAvailable();
++            // InventoryManager already handled the move via SetItem ΓÇö just reset the flag
++            _wasMovedByManager = false;
+         }
++        else
++        {
++            // Check if dropped outside UI (no raycast target hit)
++            bool droppedOutside = eventData.pointerCurrentRaycast.gameObject == null;
++            
++            if (droppedOutside && InstanceHandler.TryGetInstance(out InventoryManager invManager))
++            {
++                invManager.DropItem(this);
++                return; // Dropped into world, don't snap back
++            }
+ 
+-        _wasMovedByManager = false;
++            // α╕ûα╣ëα╕▓ OnDrop α╕éα╕¡α╕ç slot α╣äα╕öα╣ëα╕úα╕▒α╕Üα╕üα╕▓α╕úα╣Çα╕úα╕╡α╕óα╕üα╣üα╕Ñα╣ëα╕º parent α╕êα╕░α╕ûα╕╣α╕üα╣Çα╕¢α╕Ñα╕╡α╣êα╕óα╕Ö
++            // α╕ùα╕╡α╣êα╕Öα╕╡α╣ê snap α╕üα╕Ñα╕▒α╕Üα╣Çα╕ëα╕₧α╕▓α╕░α╕üα╕úα╕ôα╕╡α╕ùα╕╡α╣êα╕óα╕▒α╕çα╕Ñα╕¡α╕óα╕¡α╕óα╕╣α╣êα╕Üα╕Ö canvas (α╣äα╕íα╣êα╣äα╕öα╣ëα╕ûα╕╣α╕üα╕úα╕▒α╕Üα╣éα╕öα╕ó slot α╣âα╕ö)
++            if (canvas != null && transform.parent == canvas.transform)
++            {
++                transform.SetParent(originalParent);
++                SetAvailable();
++            }
++        }
+     }
+ 
+     public void OnPointerClick(PointerEventData eventData)
+@@ -405,11 +420,11 @@ public class InventoryItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
+ 
+         if (!InstanceHandler.TryGetInstance(out InventoryManager inventoryManager))
+         {
+-            Debug.LogError("Failed to get inventory manager to drop item!");
++            Debug.LogError("Failed to get inventory manager for quick move!");
+             return;
+         }
+ 
+-        inventoryManager.DropItem(this);
++        inventoryManager.QuickMoveItem(this);
+     }
+ 
+     public void SetAvailable()
+diff --git a/Assets/FileGame/Core/Scripts/Inventory/InventoryManager.cs b/Assets/FileGame/Core/Scripts/Inventory/InventoryManager.cs
+index 5ad422e5..431c28b8 100644
+--- a/Assets/FileGame/Core/Scripts/Inventory/InventoryManager.cs
++++ b/Assets/FileGame/Core/Scripts/Inventory/InventoryManager.cs
+@@ -352,6 +352,48 @@ public class InventoryManager : MonoBehaviour, IItemContainer
+             OnSelectedQuickSlotChanged?.Invoke(selectedQuickSlotIndex, GetQuickSlotItemData(selectedQuickSlotIndex));
+     }
+ 
++    /// <summary>
++    /// Instantly moves an item between a quick slot and a main slot, if space is available.
++    /// </summary>
++    public void QuickMoveItem(InventoryItem item)
++    {
++        var currentIndex = Array.FindIndex(_inventoryData, x => x.inventoryItem == item);
++        if (currentIndex == -1) return;
++
++        bool isQuickSlot = currentIndex < quickSlots.Count;
++        int targetSlotIndex = -1;
++
++        if (isQuickSlot)
++        {
++            // Move from quick slot to main slot
++            for (int i = quickSlots.Count; i < allSlots.Count; i++)
++            {
++                if (allSlots[i].IsEmpty)
++                {
++                    targetSlotIndex = i;
++                    break;
++                }
++            }
++        }
++        else
++        {
++            // Move from main slot to quick slot
++            for (int i = 0; i < quickSlots.Count; i++)
++            {
++                if (allSlots[i].IsEmpty)
++                {
++                    targetSlotIndex = i;
++                    break;
++                }
++            }
++        }
++
++        if (targetSlotIndex != -1)
++        {
++            ItemMoved(item, allSlots[targetSlotIndex]);
++        }
++    }
++
+     public void DropItem(InventoryItem inventoryItem)
+     {
+         for (int i = 0; i < _inventoryData.Length; i++)
+diff --git a/Assets/FileGame/Core/Scripts/Inventory/Loot/InteractableLootBox.cs b/Assets/FileGame/Core/Scripts/Inventory/Loot/InteractableLootBox.cs
+index 15c74c54..139fcd7e 100644
+--- a/Assets/FileGame/Core/Scripts/Inventory/Loot/InteractableLootBox.cs
++++ b/Assets/FileGame/Core/Scripts/Inventory/Loot/InteractableLootBox.cs
+@@ -58,7 +58,7 @@ namespace Blocks.Gameplay.Core
+                     // 2. Calculate Durability, Weight, and Scale
+                     int durability = WeightedRandomUtility.CalculateDurability(rarity);
+                     float weightKg = WeightedRandomUtility.CalculateWeight(rarity);
+-                    float scaleMult = WeightedRandomUtility.GetScaleMultiplier(rarity);
++                    float scaleMult = WeightedRandomUtility.CalculateDynamicScale(weightKg);
+                     
+                     // 3. Spawn Loot
+                     Vector3 targetPos = spawnPoint != null ? spawnPoint.position : transform.position + Vector3.up;
+diff --git a/Assets/FileGame/Core/Scripts/Inventory/Loot/WeightedRandomUtility.cs b/Assets/FileGame/Core/Scripts/Inventory/Loot/WeightedRandomUtility.cs
+index 044aef10..1df5e80e 100644
+--- a/Assets/FileGame/Core/Scripts/Inventory/Loot/WeightedRandomUtility.cs
++++ b/Assets/FileGame/Core/Scripts/Inventory/Loot/WeightedRandomUtility.cs
+@@ -70,6 +70,21 @@ public static class WeightedRandomUtility
+         };
+         return RoundWeight(weight);
+     }
++
++    public static ItemSizeRarity GetRarityFromWeight(float weightKg)
++    {
++        if (weightKg < 0.5f) return ItemSizeRarity.Small;
++        if (weightKg < 1.5f) return ItemSizeRarity.Medium;
++        if (weightKg < 3.0f) return ItemSizeRarity.Big;
++        return ItemSizeRarity.SuperHuge;
++    }
++
++    public static float CalculateDynamicScale(float weightKg)
++    {
++        ItemSizeRarity inferredRarity = GetRarityFromWeight(weightKg);
++        float baseScale = GetScaleMultiplier(inferredRarity);
++        return baseScale * (1.0f + (weightKg * 0.5f));
++    }
+     
+     public static float GetScaleMultiplier(ItemSizeRarity rarity)
+     {
+diff --git a/Assets/FileGame/Core/Scripts/Inventory/Server/InventoryNetworkHandler.cs b/Assets/FileGame/Core/Scripts/Inventory/Server/InventoryNetworkHandler.cs
+index f672d56c..f5b611db 100644
+--- a/Assets/FileGame/Core/Scripts/Inventory/Server/InventoryNetworkHandler.cs
++++ b/Assets/FileGame/Core/Scripts/Inventory/Server/InventoryNetworkHandler.cs
+@@ -164,6 +164,10 @@ public class InventoryNetworkHandler : NetworkBehaviour
+         Vector3 spawnPos = transform.position + transform.forward + Vector3.up;
+ 
+         GameObject spawnedObject = Instantiate(itemData.dropPrefab, spawnPos, Quaternion.identity);
++        
++        // Apply Dynamic Scaling based on weight
++        spawnedObject.transform.localScale *= WeightedRandomUtility.CalculateDynamicScale(slotData.weight);
++
+         NetworkObject netObj = spawnedObject.GetComponent<NetworkObject>();
+         if (netObj != null)
+         {
+diff --git a/Assets/FileGame/Core/Scripts/Inventory/Server/PlayerDropItem.cs b/Assets/FileGame/Core/Scripts/Inventory/Server/PlayerDropItem.cs
+index b614a570..6b99d06f 100644
+--- a/Assets/FileGame/Core/Scripts/Inventory/Server/PlayerDropItem.cs
++++ b/Assets/FileGame/Core/Scripts/Inventory/Server/PlayerDropItem.cs
+@@ -34,6 +34,10 @@ public class PlayerDropItem : NetworkBehaviour
+         if (itemToDrop != null && itemToDrop.dropPrefab != null)
+         {
+             GameObject spawnedObject = Instantiate(itemToDrop.dropPrefab, position, rotation);
++            
++            // Apply Dynamic Scaling based on weight
++            spawnedObject.transform.localScale *= WeightedRandomUtility.CalculateDynamicScale(weightKg);
++
+             NetworkObject netObj = spawnedObject.GetComponent<NetworkObject>();
+             if (netObj != null)
+             {
+diff --git a/ProjectSettings/ProjectVersion.txt b/ProjectSettings/ProjectVersion.txt
+index aad22bec..a4b5984e 100644
+--- a/ProjectSettings/ProjectVersion.txt
++++ b/ProjectSettings/ProjectVersion.txt
+@@ -1,2 +1,2 @@
+-m_EditorVersion: 6000.3.8f1
+-m_EditorVersionWithRevision: 6000.3.8f1 (1c7db571dde0)
++m_EditorVersion: 6000.3.6f1
++m_EditorVersionWithRevision: 6000.3.6f1 (bbb010bdb8a3)
+diff --git a/ProjectSettings/VirtualProjectsConfig.json b/ProjectSettings/VirtualProjectsConfig.json
+index 79f27d0c..c6e2cfe9 100644
+--- a/ProjectSettings/VirtualProjectsConfig.json
++++ b/ProjectSettings/VirtualProjectsConfig.json
+@@ -1,4 +1,4 @@
+ {
+   "PlayerTags": [],
+-  "version": "6000.3.8f1"
++  "version": "6000.3.6f1"
+ }
+\ No newline at end of file
