@@ -1,10 +1,11 @@
 {
   "dependencies": {
     "com.cqf.urpvolumetricfog": {
-      "version": "file:com.cqf.urpvolumetricfog",
+      "version": "https://github.com/CristianQiu/Unity-URP-Volumetric-Light.git",
       "depth": 0,
-      "source": "embedded",
-      "dependencies": {}
+      "source": "git",
+      "dependencies": {},
+      "hash": "5603593bd1719e91b7231b1f784ee972b1f7dee0"
     },
     "com.unity.2d.sprite": {
       "version": "1.0.0",
@@ -72,7 +73,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.ide.visualstudio": {
-      "version": "2.0.27",
+      "version": "2.0.26",
       "depth": 0,
       "source": "registry",
       "dependencies": {
@@ -129,7 +130,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.netcode.gameobjects": {
-      "version": "2.11.1",
+      "version": "2.10.0",
       "depth": 0,
       "source": "registry",
       "dependencies": {
@@ -349,7 +350,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.timeline": {
-      "version": "1.8.12",
+      "version": "1.8.11",
       "depth": 0,
       "source": "registry",
       "dependencies": {
@@ -361,7 +362,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.transport": {
-      "version": "2.7.2",
+      "version": "2.7.1",
       "depth": 0,
       "source": "registry",
       "dependencies": {

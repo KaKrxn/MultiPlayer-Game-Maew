@@ -175,6 +175,5 @@ QualitySettings:
   m_PerPlatformDefaultQuality:
     Android: 0
     Nintendo Switch 2: 0
-    Server: 0
     Standalone: 1
     WebGL: 1
